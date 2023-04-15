@@ -1,0 +1,7 @@
+--------------- Build Started: 04/15/2023 14:54:54 Project: CAN_Board, Configuration: ARM GCC 5.4-2016-q2-update Debug ---------------
+cydsfit.exe -.appdatapath "C:\Users\casey\AppData\Local\Cypress Semiconductor\PSoC Creator\4.4" -.fdsnotice -.fdswarpdepfile=warp_dependencies.txt -.fdselabdepfile=elab_dependencies.txt -.fdsbldfile=generated_files.txt -.fdsreffile=referenced_files.txt -p "C:\Users\casey\Desktop\Robotics Stuff\CAN_Tester_Board\CAN_Board.cydsn\CAN_Board.cyprj" -d CY8C4247LTI-L485 -s "C:\Users\casey\Desktop\Robotics Stuff\CAN_Tester_Board\CAN_Board.cydsn\Generated_Source\PSoC4" -- -yv2 -q10 -ygs -o2 -v3 -.fftcfgtype=LE
+Elaborating Design...
+ADD: sdb.M0059: error: Error in component: CAN. The SYSCLK clock is undefined or was changed. For proper bit timing calculation, launch the CAN configuration dialog and select the appropriate values in the Timing tab.
+ * C:\Users\casey\Desktop\Robotics Stuff\CAN_Tester_Board\CAN_Board.cydsn\TopDesign\TopDesign.cysch (Instance:CAN)
+Error: fit.M0050: The fitter aborted due to errors, please address all errors and rebuild. (App=cydsfit)
+--------------- Build Failed: 04/15/2023 14:54:57 ---------------

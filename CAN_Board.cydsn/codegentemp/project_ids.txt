@@ -1,0 +1,6 @@
+C:\Users\casey\Desktop\Robotics Stuff\CAN_Tester_Board\CAN_Board.cydsn\CAN_Board.cyprj|01196886-a847-4b55-830d-82b6afe4ad69
+C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\default\CyAnnotationLibrary\CyAnnotationLibrary.cylib\CyAnnotationLibrary.cyprj|8ea9aa04-8b32-410c-8ef6-cc832b4a1c16
+C:\Users\casey\Documents\PSoC Creator\4.4\Downloads ( 4.4).cylib\Downloads ( 4.4).cyprj|ea87f253-c7f9-4e60-83b0-591303aee37c
+C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\cycomponentlibraryupdates\CyComponentLibraryUpdates.cylib\CyComponentLibraryUpdates.cyprj|3d5745d8-69f6-4f2c-b458-c403f84d5a08
+C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\cycomponentlibrary\CyComponentLibrary.cylib\CyComponentLibrary.cyprj|b260677d-4ee9-4512-a3f2-f850e742c2f5
+C:\Program Files (x86)\Cypress\PSoC Creator\4.4\PSoC Creator\psoc\content\cyprimitives\CyPrimitives.cylib\CyPrimitives.cyprj|77e52044-25fb-4dbc-b785-f0d74076fb83
