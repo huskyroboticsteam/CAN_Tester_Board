@@ -1,0 +1,4282 @@
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 1
+
+
+   1              		.syntax unified
+   2              		.cpu cortex-m0
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 0
+  12              		.eabi_attribute 18, 4
+  13              		.thumb
+  14              		.syntax unified
+  15              		.file	"UART_Interface.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.section	.text.SendCANPacket,"ax",%progbits
+  20              		.align	2
+  21              		.global	SendCANPacket
+  22              		.code	16
+  23              		.thumb_func
+  24              		.type	SendCANPacket, %function
+  25              	SendCANPacket:
+  26              	.LFB34:
+  27              		.file 1 "CAN_Stuff.c"
+   1:CAN_Stuff.c   **** /* ========================================
+   2:CAN_Stuff.c   ****  *
+   3:CAN_Stuff.c   ****  * Copyright YOUR COMPANY, THE YEAR
+   4:CAN_Stuff.c   ****  * All Rights Reserved
+   5:CAN_Stuff.c   ****  * UNPUBLISHED, LICENSED SOFTWARE.
+   6:CAN_Stuff.c   ****  *
+   7:CAN_Stuff.c   ****  * CONFIDENTIAL AND PROPRIETARY INFORMATION
+   8:CAN_Stuff.c   ****  * WHICH IS THE PROPERTY OF your company.
+   9:CAN_Stuff.c   ****  *
+  10:CAN_Stuff.c   ****  * ========================================
+  11:CAN_Stuff.c   **** */
+  12:CAN_Stuff.c   **** 
+  13:CAN_Stuff.c   **** #include "CAN_Stuff.h"
+  14:CAN_Stuff.c   **** 
+  15:CAN_Stuff.c   **** typedef struct
+  16:CAN_Stuff.c   **** {
+  17:CAN_Stuff.c   ****     uint16_t id;
+  18:CAN_Stuff.c   ****     uint8_t dlc;
+  19:CAN_Stuff.c   ****     uint8_t data[8];
+  20:CAN_Stuff.c   **** } CANPacket;
+  21:CAN_Stuff.c   **** 
+  22:CAN_Stuff.c   **** volatile uint8_t messagePresentFlag = 0xFF;
+  23:CAN_Stuff.c   **** volatile uint8_t messageReadFlag = 0x0;
+  24:CAN_Stuff.c   **** uint8_t FIFOSize(void);
+  25:CAN_Stuff.c   **** void countAddFIFO(void);
+  26:CAN_Stuff.c   **** void countRemoveFIFO(void);
+  27:CAN_Stuff.c   **** 
+  28:CAN_Stuff.c   **** #define FIFO_SIZE   16
+  29:CAN_Stuff.c   **** volatile CANPacket latestMessage[FIFO_SIZE];//internal to this port acts like a FIFO with 10 packet
+  30:CAN_Stuff.c   **** volatile uint8_t latestMessageHead = 0; //which index to read
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 2
+
+
+  31:CAN_Stuff.c   **** volatile uint8_t latestMessageTail = 0; //which index to write to next
+  32:CAN_Stuff.c   **** volatile uint8_t latestMessageFull = 0; //FIFO is full
+  33:CAN_Stuff.c   **** 
+  34:CAN_Stuff.c   **** CY_ISR_PROTO(CAN_FLAG_ISR);
+  35:CAN_Stuff.c   **** 
+  36:CAN_Stuff.c   **** int deviceAddress;
+  37:CAN_Stuff.c   **** int deviceGroup;
+  38:CAN_Stuff.c   **** CAN_RX_CFG rxMailbox;
+  39:CAN_Stuff.c   **** 
+  40:CAN_Stuff.c   **** int mailbox = 0;
+  41:CAN_Stuff.c   **** 
+  42:CAN_Stuff.c   **** volatile CANPacket packet;
+  43:CAN_Stuff.c   **** 
+  44:CAN_Stuff.c   **** CY_ISR_PROTO(ISR_CAN);
+  45:CAN_Stuff.c   **** 
+  46:CAN_Stuff.c   **** CAN_TX_MSG messagePWM;
+  47:CAN_Stuff.c   **** volatile uint8 receiveMailboxNumber = 0xFFu;
+  48:CAN_Stuff.c   **** 
+  49:CAN_Stuff.c   **** volatile uint16 CAN_time_LED = 0;
+  50:CAN_Stuff.c   **** 
+  51:CAN_Stuff.c   **** int SendCANPacket(CANPacket *packetToSend)
+  52:CAN_Stuff.c   **** {
+  28              		.loc 1 52 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 24
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              	.LVL0:
+  33 0000 10B5     		push	{r4, lr}
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 4, -8
+  36              		.cfi_offset 14, -4
+  37 0002 86B0     		sub	sp, sp, #24
+  38              		.cfi_def_cfa_offset 32
+  53:CAN_Stuff.c   ****     if(!packetToSend) {return ERROR_NULL_POINTER;}
+  39              		.loc 1 53 0
+  40 0004 0028     		cmp	r0, #0
+  41 0006 15D0     		beq	.L3
+  54:CAN_Stuff.c   ****     CAN_TX_MSG PSoCMessage;//CAN structure
+  55:CAN_Stuff.c   ****     CAN_DATA_BYTES_MSG PSoCData;//CAN data
+  56:CAN_Stuff.c   ****     PSoCMessage.id = packetToSend->id;
+  42              		.loc 1 56 0
+  43 0008 0388     		ldrh	r3, [r0]
+  44 000a 02AC     		add	r4, sp, #8
+  45 000c 0293     		str	r3, [sp, #8]
+  57:CAN_Stuff.c   ****     PSoCMessage.rtr = 0x0;
+  46              		.loc 1 57 0
+  47 000e 0023     		movs	r3, #0
+  48 0010 2371     		strb	r3, [r4, #4]
+  58:CAN_Stuff.c   ****     PSoCMessage.ide = 0x0;//Not extended
+  49              		.loc 1 58 0
+  50 0012 6371     		strb	r3, [r4, #5]
+  59:CAN_Stuff.c   ****     PSoCMessage.dlc = packetToSend->dlc;
+  51              		.loc 1 59 0
+  52 0014 8278     		ldrb	r2, [r0, #2]
+  53 0016 A271     		strb	r2, [r4, #6]
+  60:CAN_Stuff.c   ****     PSoCMessage.irq = 0x0;
+  54              		.loc 1 60 0
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 3
+
+
+  55 0018 E371     		strb	r3, [r4, #7]
+  61:CAN_Stuff.c   ****     PSoCMessage.msg = &PSoCData;
+  56              		.loc 1 61 0
+  57 001a 6B46     		mov	r3, sp
+  58 001c 0593     		str	r3, [sp, #20]
+  62:CAN_Stuff.c   ****     
+  63:CAN_Stuff.c   ****     memcpy(PSoCData.byte, packetToSend->data, 8);
+  59              		.loc 1 63 0
+  60 001e C11C     		adds	r1, r0, #3
+  61 0020 0822     		movs	r2, #8
+  62 0022 6846     		mov	r0, sp
+  63              	.LVL1:
+  64 0024 FFF7FEFF 		bl	memcpy
+  65              	.LVL2:
+  64:CAN_Stuff.c   **** 
+  65:CAN_Stuff.c   ****     if(CAN_SendMsg(&PSoCMessage) == CYRET_SUCCESS) {
+  66              		.loc 1 65 0
+  67 0028 2000     		movs	r0, r4
+  68 002a FFF7FEFF 		bl	CAN_SendMsg
+  69              	.LVL3:
+  70 002e 0028     		cmp	r0, #0
+  71 0030 02D1     		bne	.L4
+  72 0032 02E0     		b	.L2
+  73              	.LVL4:
+  74              	.L3:
+  53:CAN_Stuff.c   ****     CAN_TX_MSG PSoCMessage;//CAN structure
+  75              		.loc 1 53 0
+  76 0034 0220     		movs	r0, #2
+  77              	.LVL5:
+  78 0036 00E0     		b	.L2
+  79              	.L4:
+  66:CAN_Stuff.c   ****         return ERROR_NONE;
+  67:CAN_Stuff.c   ****     } else
+  68:CAN_Stuff.c   ****     {
+  69:CAN_Stuff.c   ****         return ERROR_GENERIC_ERROR;
+  80              		.loc 1 69 0
+  81 0038 0120     		movs	r0, #1
+  82              	.L2:
+  70:CAN_Stuff.c   ****     }
+  71:CAN_Stuff.c   **** }
+  83              		.loc 1 71 0
+  84 003a 06B0     		add	sp, sp, #24
+  85              		@ sp needed
+  86 003c 10BD     		pop	{r4, pc}
+  87              		.cfi_endproc
+  88              	.LFE34:
+  89              		.size	SendCANPacket, .-SendCANPacket
+  90 003e C046     		.section	.text.InitCAN,"ax",%progbits
+  91              		.align	2
+  92              		.global	InitCAN
+  93              		.code	16
+  94              		.thumb_func
+  95              		.type	InitCAN, %function
+  96              	InitCAN:
+  97              	.LFB35:
+  72:CAN_Stuff.c   **** 
+  73:CAN_Stuff.c   **** void InitCAN() {
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 4
+
+
+  98              		.loc 1 73 0
+  99              		.cfi_startproc
+ 100              		@ args = 0, pretend = 0, frame = 0
+ 101              		@ frame_needed = 0, uses_anonymous_args = 0
+ 102 0000 70B5     		push	{r4, r5, r6, lr}
+ 103              		.cfi_def_cfa_offset 16
+ 104              		.cfi_offset 4, -16
+ 105              		.cfi_offset 5, -12
+ 106              		.cfi_offset 6, -8
+ 107              		.cfi_offset 14, -4
+  74:CAN_Stuff.c   ****     
+  75:CAN_Stuff.c   ****     CAN_Start();//must name CAN Top Design block as "CAN"
+ 108              		.loc 1 75 0
+ 109 0002 FFF7FEFF 		bl	CAN_Start
+ 110              	.LVL6:
+  76:CAN_Stuff.c   ****     
+  77:CAN_Stuff.c   ****     //TODO: I'm sure there's a better way of doing this part
+  78:CAN_Stuff.c   ****     // deviceGroup = deviceGroupInput & 0xF; // 4bits of ID
+  79:CAN_Stuff.c   ****     // deviceAddress = deviceAddressInput & (0x3f);//6bits of ID
+  80:CAN_Stuff.c   ****     
+  81:CAN_Stuff.c   ****     //sets up inidvidual recieve mailbox (3rd priority mailbox)
+  82:CAN_Stuff.c   ****     rxMailbox.rxmailbox = 0;
+ 111              		.loc 1 82 0
+ 112 0006 114C     		ldr	r4, .L6
+ 113 0008 0026     		movs	r6, #0
+ 114 000a 2670     		strb	r6, [r4]
+  83:CAN_Stuff.c   ****     // rxMailbox.rxacr = ((deviceGroup << 6)|(deviceAddress)) << 21;  // first 11 bits are the CAN 
+  84:CAN_Stuff.c   ****     rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
+ 115              		.loc 1 84 0
+ 116 000c 104D     		ldr	r5, .L6+4
+ 117 000e A560     		str	r5, [r4, #8]
+  85:CAN_Stuff.c   ****     rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_0);//need to know what this is
+ 118              		.loc 1 85 0
+ 119 0010 104B     		ldr	r3, .L6+8
+ 120 0012 1B68     		ldr	r3, [r3]
+ 121 0014 6360     		str	r3, [r4, #4]
+  86:CAN_Stuff.c   ****     CAN_RxBufConfig(&rxMailbox);
+ 122              		.loc 1 86 0
+ 123 0016 2000     		movs	r0, r4
+ 124 0018 FFF7FEFF 		bl	CAN_RxBufConfig
+ 125              	.LVL7:
+  87:CAN_Stuff.c   ****     
+  88:CAN_Stuff.c   ****     //setup broadcast recieve mailbox (1st priority mailbox)
+  89:CAN_Stuff.c   ****     rxMailbox.rxmailbox = 1;
+ 126              		.loc 1 89 0
+ 127 001c 0123     		movs	r3, #1
+ 128 001e 2370     		strb	r3, [r4]
+  90:CAN_Stuff.c   ****     rxMailbox.rxacr = ((0x0 << 6)|(0x0)) << 21; //0x20F<<21; // first 11 bits are the CAN ID that i
+ 129              		.loc 1 90 0
+ 130 0020 E660     		str	r6, [r4, #12]
+  91:CAN_Stuff.c   ****     rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
+ 131              		.loc 1 91 0
+ 132 0022 A560     		str	r5, [r4, #8]
+  92:CAN_Stuff.c   ****     rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_1);//need to know what this is
+ 133              		.loc 1 92 0
+ 134 0024 0C4B     		ldr	r3, .L6+12
+ 135 0026 1B68     		ldr	r3, [r3]
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 5
+
+
+ 136 0028 6360     		str	r3, [r4, #4]
+  93:CAN_Stuff.c   ****     CAN_RxBufConfig(&rxMailbox);
+ 137              		.loc 1 93 0
+ 138 002a 2000     		movs	r0, r4
+ 139 002c FFF7FEFF 		bl	CAN_RxBufConfig
+ 140              	.LVL8:
+  94:CAN_Stuff.c   ****     
+  95:CAN_Stuff.c   ****     //setup group broadcast recieve mailbox (2nd priority mailbox)
+  96:CAN_Stuff.c   ****     rxMailbox.rxmailbox = 2;
+ 141              		.loc 1 96 0
+ 142 0030 0223     		movs	r3, #2
+ 143 0032 2370     		strb	r3, [r4]
+  97:CAN_Stuff.c   ****     // rxMailbox.rxacr = ((deviceGroup << 6)|(0x3F)) << 21; //0x20F<<21; // first 11 bits are the C
+  98:CAN_Stuff.c   ****     rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
+ 144              		.loc 1 98 0
+ 145 0034 A560     		str	r5, [r4, #8]
+  99:CAN_Stuff.c   ****     rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_2);//need to know what this is
+ 146              		.loc 1 99 0
+ 147 0036 094B     		ldr	r3, .L6+16
+ 148 0038 1B68     		ldr	r3, [r3]
+ 149 003a 6360     		str	r3, [r4, #4]
+ 100:CAN_Stuff.c   ****     //CAN_RxBufConfig(&rxMailbox);
+ 101:CAN_Stuff.c   ****     
+ 102:CAN_Stuff.c   ****     CAN_GlobalIntEnable();
+ 150              		.loc 1 102 0
+ 151 003c FFF7FEFF 		bl	CAN_GlobalIntEnable
+ 152              	.LVL9:
+ 103:CAN_Stuff.c   ****     CyIntSetVector(CAN_ISR_NUMBER, CAN_FLAG_ISR);
+ 153              		.loc 1 103 0
+ 154 0040 0749     		ldr	r1, .L6+20
+ 155 0042 1C20     		movs	r0, #28
+ 156 0044 FFF7FEFF 		bl	CyIntSetVector
+ 157              	.LVL10:
+ 104:CAN_Stuff.c   **** }
+ 158              		.loc 1 104 0
+ 159              		@ sp needed
+ 160 0048 70BD     		pop	{r4, r5, r6, pc}
+ 161              	.L7:
+ 162 004a C046     		.align	2
+ 163              	.L6:
+ 164 004c 00000000 		.word	rxMailbox
+ 165 0050 FFFF1F80 		.word	-2145386497
+ 166 0054 A0002E40 		.word	1076756640
+ 167 0058 C0002E40 		.word	1076756672
+ 168 005c E0002E40 		.word	1076756704
+ 169 0060 00000000 		.word	CAN_FLAG_ISR
+ 170              		.cfi_endproc
+ 171              	.LFE35:
+ 172              		.size	InitCAN, .-InitCAN
+ 173              		.section	.text.FIFOSize,"ax",%progbits
+ 174              		.align	2
+ 175              		.global	FIFOSize
+ 176              		.code	16
+ 177              		.thumb_func
+ 178              		.type	FIFOSize, %function
+ 179              	FIFOSize:
+ 180              	.LFB38:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 6
+
+
+ 105:CAN_Stuff.c   **** 
+ 106:CAN_Stuff.c   **** CY_ISR(CAN_FLAG_ISR)
+ 107:CAN_Stuff.c   **** {
+ 108:CAN_Stuff.c   ****     CAN_time_LED = 1000;
+ 109:CAN_Stuff.c   ****     //*(reg32*)0x402F0000 = CAN_RX_MESSAGE_MASK & CAN_SST_FAILURE_MASK & CAN_CRC_ERROR_MASK; //Clea
+ 110:CAN_Stuff.c   ****     CAN_INT_SR_REG = CAN_RX_MESSAGE_MASK;
+ 111:CAN_Stuff.c   ****     uint32_t statusReg = (uint32_t) CAN_BUF_SR_REG; //Hardcoded for speed, translation from reg
+ 112:CAN_Stuff.c   ****     uint8_t mailbox;
+ 113:CAN_Stuff.c   ****     
+ 114:CAN_Stuff.c   ****     if(statusReg & 0b1) { // mailbox0 is full (individual)
+ 115:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_0;
+ 116:CAN_Stuff.c   ****     }
+ 117:CAN_Stuff.c   ****     else if(statusReg & 0b10) { // mailbox1 is full (broadcast)
+ 118:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_1;
+ 119:CAN_Stuff.c   ****     }    
+ 120:CAN_Stuff.c   ****     else if(statusReg & 0b100) { // mailbox2 is full (group broadcast)
+ 121:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_2;
+ 122:CAN_Stuff.c   ****     } 
+ 123:CAN_Stuff.c   ****     else if(statusReg & 0b1000) { // mailbox3 is full currently recieves anything enable in top des
+ 124:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_3;
+ 125:CAN_Stuff.c   ****     }
+ 126:CAN_Stuff.c   ****     
+ 127:CAN_Stuff.c   ****     latestMessage[latestMessageTail].id = CAN_GET_RX_ID(mailbox);
+ 128:CAN_Stuff.c   ****     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
+ 129:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[0] = CAN_RX_DATA_BYTE1(mailbox);
+ 130:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[1] = CAN_RX_DATA_BYTE2(mailbox);
+ 131:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[2] = CAN_RX_DATA_BYTE3(mailbox);
+ 132:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[3] = CAN_RX_DATA_BYTE4(mailbox);
+ 133:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[4] = CAN_RX_DATA_BYTE5(mailbox);
+ 134:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[5] = CAN_RX_DATA_BYTE6(mailbox);
+ 135:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[6] = CAN_RX_DATA_BYTE7(mailbox);
+ 136:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[7] = CAN_RX_DATA_BYTE8(mailbox);
+ 137:CAN_Stuff.c   ****     countAddFIFO();
+ 138:CAN_Stuff.c   **** 
+ 139:CAN_Stuff.c   ****     //CAN_ReceiveMsg(messagePresentFlag);
+ 140:CAN_Stuff.c   ****     CAN_RX_ACK_MESSAGE(mailbox);
+ 141:CAN_Stuff.c   **** }
+ 142:CAN_Stuff.c   **** 
+ 143:CAN_Stuff.c   **** int PollAndReceiveCANPacket(CANPacket *receivedPacket)
+ 144:CAN_Stuff.c   **** {
+ 145:CAN_Stuff.c   ****     if(!receivedPacket)
+ 146:CAN_Stuff.c   ****         return ERROR_NULL_POINTER;
+ 147:CAN_Stuff.c   ****     
+ 148:CAN_Stuff.c   ****     volatile uint8_t size = FIFOSize();
+ 149:CAN_Stuff.c   ****     if(size)
+ 150:CAN_Stuff.c   ****     {
+ 151:CAN_Stuff.c   ****         *(receivedPacket) = latestMessage[latestMessageHead];
+ 152:CAN_Stuff.c   ****         countRemoveFIFO();
+ 153:CAN_Stuff.c   ****         return ERROR_NONE;
+ 154:CAN_Stuff.c   ****     }
+ 155:CAN_Stuff.c   ****     
+ 156:CAN_Stuff.c   ****     return 0x02; //No message received error
+ 157:CAN_Stuff.c   **** }
+ 158:CAN_Stuff.c   **** 
+ 159:CAN_Stuff.c   **** 
+ 160:CAN_Stuff.c   **** //helper function calculate size of Fifo
+ 161:CAN_Stuff.c   **** uint8_t FIFOSize(){
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 7
+
+
+ 181              		.loc 1 161 0
+ 182              		.cfi_startproc
+ 183              		@ args = 0, pretend = 0, frame = 0
+ 184              		@ frame_needed = 0, uses_anonymous_args = 0
+ 185              		@ link register save eliminated.
+ 162:CAN_Stuff.c   ****     if(latestMessageFull) {
+ 186              		.loc 1 162 0
+ 187 0000 104B     		ldr	r3, .L12
+ 188 0002 1878     		ldrb	r0, [r3]
+ 189 0004 C0B2     		uxtb	r0, r0
+ 190 0006 0028     		cmp	r0, #0
+ 191 0008 19D1     		bne	.L11
+ 163:CAN_Stuff.c   ****         return FIFO_SIZE;
+ 164:CAN_Stuff.c   ****     }
+ 165:CAN_Stuff.c   ****     else if(latestMessageHead < latestMessageTail) {
+ 192              		.loc 1 165 0
+ 193 000a 5A78     		ldrb	r2, [r3, #1]
+ 194 000c D2B2     		uxtb	r2, r2
+ 195 000e 9B78     		ldrb	r3, [r3, #2]
+ 196 0010 DBB2     		uxtb	r3, r3
+ 197 0012 9A42     		cmp	r2, r3
+ 198 0014 05D2     		bcs	.L10
+ 166:CAN_Stuff.c   ****         return latestMessageTail - latestMessageHead;
+ 199              		.loc 1 166 0
+ 200 0016 0B4A     		ldr	r2, .L12
+ 201 0018 9378     		ldrb	r3, [r2, #2]
+ 202 001a 5078     		ldrb	r0, [r2, #1]
+ 203 001c 181A     		subs	r0, r3, r0
+ 204 001e C0B2     		uxtb	r0, r0
+ 205 0020 0EE0     		b	.L9
+ 206              	.L10:
+ 167:CAN_Stuff.c   ****     }
+ 168:CAN_Stuff.c   ****     else if(latestMessageHead > latestMessageTail) {
+ 207              		.loc 1 168 0
+ 208 0022 084B     		ldr	r3, .L12
+ 209 0024 5A78     		ldrb	r2, [r3, #1]
+ 210 0026 D2B2     		uxtb	r2, r2
+ 211 0028 9B78     		ldrb	r3, [r3, #2]
+ 212 002a DBB2     		uxtb	r3, r3
+ 213 002c 9A42     		cmp	r2, r3
+ 214 002e 07D9     		bls	.L9
+ 169:CAN_Stuff.c   ****         return (FIFO_SIZE - latestMessageHead) + latestMessageTail;
+ 215              		.loc 1 169 0
+ 216 0030 044A     		ldr	r2, .L12
+ 217 0032 9378     		ldrb	r3, [r2, #2]
+ 218 0034 5078     		ldrb	r0, [r2, #1]
+ 219 0036 181A     		subs	r0, r3, r0
+ 220 0038 1030     		adds	r0, r0, #16
+ 221 003a C0B2     		uxtb	r0, r0
+ 222 003c 00E0     		b	.L9
+ 223              	.L11:
+ 163:CAN_Stuff.c   ****     }
+ 224              		.loc 1 163 0
+ 225 003e 1020     		movs	r0, #16
+ 226              	.L9:
+ 170:CAN_Stuff.c   ****     }
+ 171:CAN_Stuff.c   ****     else { // latestMessageHead == latestMessageTail && !latestMessageFull
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 8
+
+
+ 172:CAN_Stuff.c   ****         return 0;
+ 173:CAN_Stuff.c   ****     }
+ 174:CAN_Stuff.c   **** }
+ 227              		.loc 1 174 0
+ 228              		@ sp needed
+ 229 0040 7047     		bx	lr
+ 230              	.L13:
+ 231 0042 C046     		.align	2
+ 232              	.L12:
+ 233 0044 00000000 		.word	.LANCHOR0
+ 234              		.cfi_endproc
+ 235              	.LFE38:
+ 236              		.size	FIFOSize, .-FIFOSize
+ 237              		.section	.text.countAddFIFO,"ax",%progbits
+ 238              		.align	2
+ 239              		.global	countAddFIFO
+ 240              		.code	16
+ 241              		.thumb_func
+ 242              		.type	countAddFIFO, %function
+ 243              	countAddFIFO:
+ 244              	.LFB39:
+ 175:CAN_Stuff.c   **** 
+ 176:CAN_Stuff.c   **** void countAddFIFO(){ 
+ 245              		.loc 1 176 0
+ 246              		.cfi_startproc
+ 247              		@ args = 0, pretend = 0, frame = 0
+ 248              		@ frame_needed = 0, uses_anonymous_args = 0
+ 249              		@ link register save eliminated.
+ 177:CAN_Stuff.c   ****     latestMessageTail++;
+ 250              		.loc 1 177 0
+ 251 0000 124A     		ldr	r2, .L17
+ 252 0002 9378     		ldrb	r3, [r2, #2]
+ 253 0004 0133     		adds	r3, r3, #1
+ 254 0006 DBB2     		uxtb	r3, r3
+ 255 0008 9370     		strb	r3, [r2, #2]
+ 178:CAN_Stuff.c   ****     if(latestMessageTail >= FIFO_SIZE){
+ 256              		.loc 1 178 0
+ 257 000a 9378     		ldrb	r3, [r2, #2]
+ 258 000c DBB2     		uxtb	r3, r3
+ 259 000e 0F2B     		cmp	r3, #15
+ 260 0010 02D9     		bls	.L15
+ 179:CAN_Stuff.c   ****         latestMessageTail = 0;
+ 261              		.loc 1 179 0
+ 262 0012 0022     		movs	r2, #0
+ 263 0014 0D4B     		ldr	r3, .L17
+ 264 0016 9A70     		strb	r2, [r3, #2]
+ 265              	.L15:
+ 180:CAN_Stuff.c   ****     }
+ 181:CAN_Stuff.c   ****     if(latestMessageFull) {
+ 266              		.loc 1 181 0
+ 267 0018 0C4B     		ldr	r3, .L17
+ 268 001a 1B78     		ldrb	r3, [r3]
+ 269 001c 002B     		cmp	r3, #0
+ 270 001e 0BD0     		beq	.L16
+ 182:CAN_Stuff.c   ****         latestMessageHead++;
+ 271              		.loc 1 182 0
+ 272 0020 0A4A     		ldr	r2, .L17
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 9
+
+
+ 273 0022 5378     		ldrb	r3, [r2, #1]
+ 274 0024 0133     		adds	r3, r3, #1
+ 275 0026 DBB2     		uxtb	r3, r3
+ 276 0028 5370     		strb	r3, [r2, #1]
+ 183:CAN_Stuff.c   ****         if(latestMessageHead >= FIFO_SIZE) {
+ 277              		.loc 1 183 0
+ 278 002a 5378     		ldrb	r3, [r2, #1]
+ 279 002c DBB2     		uxtb	r3, r3
+ 280 002e 0F2B     		cmp	r3, #15
+ 281 0030 02D9     		bls	.L16
+ 184:CAN_Stuff.c   ****             latestMessageHead = 0;
+ 282              		.loc 1 184 0
+ 283 0032 0022     		movs	r2, #0
+ 284 0034 054B     		ldr	r3, .L17
+ 285 0036 5A70     		strb	r2, [r3, #1]
+ 286              	.L16:
+ 185:CAN_Stuff.c   ****         }
+ 186:CAN_Stuff.c   ****     }
+ 187:CAN_Stuff.c   ****     latestMessageFull = (latestMessageHead == latestMessageTail);
+ 287              		.loc 1 187 0
+ 288 0038 044A     		ldr	r2, .L17
+ 289 003a 5378     		ldrb	r3, [r2, #1]
+ 290 003c 9178     		ldrb	r1, [r2, #2]
+ 291 003e 5B1A     		subs	r3, r3, r1
+ 292 0040 5942     		rsbs	r1, r3, #0
+ 293 0042 4B41     		adcs	r3, r3, r1
+ 294 0044 DBB2     		uxtb	r3, r3
+ 295 0046 1370     		strb	r3, [r2]
+ 188:CAN_Stuff.c   **** }
+ 296              		.loc 1 188 0
+ 297              		@ sp needed
+ 298 0048 7047     		bx	lr
+ 299              	.L18:
+ 300 004a C046     		.align	2
+ 301              	.L17:
+ 302 004c 00000000 		.word	.LANCHOR0
+ 303              		.cfi_endproc
+ 304              	.LFE39:
+ 305              		.size	countAddFIFO, .-countAddFIFO
+ 306              		.section	.text.CAN_FLAG_ISR,"ax",%progbits
+ 307              		.align	2
+ 308              		.global	CAN_FLAG_ISR
+ 309              		.code	16
+ 310              		.thumb_func
+ 311              		.type	CAN_FLAG_ISR, %function
+ 312              	CAN_FLAG_ISR:
+ 313              	.LFB36:
+ 107:CAN_Stuff.c   ****     CAN_time_LED = 1000;
+ 314              		.loc 1 107 0
+ 315              		.cfi_startproc
+ 316              		@ args = 0, pretend = 0, frame = 0
+ 317              		@ frame_needed = 0, uses_anonymous_args = 0
+ 318 0000 70B5     		push	{r4, r5, r6, lr}
+ 319              		.cfi_def_cfa_offset 16
+ 320              		.cfi_offset 4, -16
+ 321              		.cfi_offset 5, -12
+ 322              		.cfi_offset 6, -8
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 10
+
+
+ 323              		.cfi_offset 14, -4
+ 108:CAN_Stuff.c   ****     //*(reg32*)0x402F0000 = CAN_RX_MESSAGE_MASK & CAN_SST_FAILURE_MASK & CAN_CRC_ERROR_MASK; //Clea
+ 324              		.loc 1 108 0
+ 325 0002 FA22     		movs	r2, #250
+ 326 0004 9200     		lsls	r2, r2, #2
+ 327 0006 464B     		ldr	r3, .L27
+ 328 0008 9A80     		strh	r2, [r3, #4]
+ 110:CAN_Stuff.c   ****     uint32_t statusReg = (uint32_t) CAN_BUF_SR_REG; //Hardcoded for speed, translation from reg
+ 329              		.loc 1 110 0
+ 330 000a 8022     		movs	r2, #128
+ 331 000c 5201     		lsls	r2, r2, #5
+ 332 000e 454B     		ldr	r3, .L27+4
+ 333 0010 1A60     		str	r2, [r3]
+ 111:CAN_Stuff.c   ****     uint8_t mailbox;
+ 334              		.loc 1 111 0
+ 335 0012 454B     		ldr	r3, .L27+8
+ 336 0014 1B68     		ldr	r3, [r3]
+ 337              	.LVL11:
+ 114:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_0;
+ 338              		.loc 1 114 0
+ 339 0016 DA07     		lsls	r2, r3, #31
+ 340 0018 06D4     		bmi	.L23
+ 117:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_1;
+ 341              		.loc 1 117 0
+ 342 001a 9A07     		lsls	r2, r3, #30
+ 343 001c 06D4     		bmi	.L24
+ 120:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_2;
+ 344              		.loc 1 120 0
+ 345 001e 5A07     		lsls	r2, r3, #29
+ 346 0020 06D4     		bmi	.L25
+ 123:CAN_Stuff.c   ****         mailbox = CAN_RX_MAILBOX_3;
+ 347              		.loc 1 123 0
+ 348 0022 1B07     		lsls	r3, r3, #28
+ 349 0024 06D4     		bmi	.L26
+ 350              	.LVL12:
+ 351 0026 06E0     		b	.L20
+ 352              	.LVL13:
+ 353              	.L23:
+ 115:CAN_Stuff.c   ****     }
+ 354              		.loc 1 115 0
+ 355 0028 0024     		movs	r4, #0
+ 356 002a 04E0     		b	.L20
+ 357              	.L24:
+ 118:CAN_Stuff.c   ****     }    
+ 358              		.loc 1 118 0
+ 359 002c 0124     		movs	r4, #1
+ 360 002e 02E0     		b	.L20
+ 361              	.L25:
+ 121:CAN_Stuff.c   ****     } 
+ 362              		.loc 1 121 0
+ 363 0030 0224     		movs	r4, #2
+ 364 0032 00E0     		b	.L20
+ 365              	.LVL14:
+ 366              	.L26:
+ 124:CAN_Stuff.c   ****     }
+ 367              		.loc 1 124 0
+ 368 0034 0324     		movs	r4, #3
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 11
+
+
+ 369              	.L20:
+ 370              	.LVL15:
+ 127:CAN_Stuff.c   ****     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
+ 371              		.loc 1 127 0
+ 372 0036 3A4B     		ldr	r3, .L27
+ 373 0038 9A78     		ldrb	r2, [r3, #2]
+ 374 003a D2B2     		uxtb	r2, r2
+ 375 003c 6401     		lsls	r4, r4, #5
+ 376              	.LVL16:
+ 377 003e 3B4B     		ldr	r3, .L27+12
+ 378 0040 9C46     		mov	ip, r3
+ 379 0042 6444     		add	r4, r4, ip
+ 380 0044 2368     		ldr	r3, [r4]
+ 381 0046 DB02     		lsls	r3, r3, #11
+ 382 0048 02D4     		bmi	.L21
+ 127:CAN_Stuff.c   ****     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
+ 383              		.loc 1 127 0 is_stmt 0 discriminator 1
+ 384 004a 6168     		ldr	r1, [r4, #4]
+ 385 004c 490D     		lsrs	r1, r1, #21
+ 386 004e 02E0     		b	.L22
+ 387              	.L21:
+ 127:CAN_Stuff.c   ****     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
+ 388              		.loc 1 127 0 discriminator 2
+ 389 0050 6168     		ldr	r1, [r4, #4]
+ 390 0052 C908     		lsrs	r1, r1, #3
+ 391 0054 89B2     		uxth	r1, r1
+ 392              	.L22:
+ 127:CAN_Stuff.c   ****     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
+ 393              		.loc 1 127 0 discriminator 4
+ 394 0056 364B     		ldr	r3, .L27+16
+ 395 0058 5000     		lsls	r0, r2, #1
+ 396 005a 8218     		adds	r2, r0, r2
+ 397 005c 9000     		lsls	r0, r2, #2
+ 398 005e C152     		strh	r1, [r0, r3]
+ 128:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[0] = CAN_RX_DATA_BYTE1(mailbox);
+ 399              		.loc 1 128 0 is_stmt 1 discriminator 4
+ 400 0060 2F4A     		ldr	r2, .L27
+ 401 0062 9178     		ldrb	r1, [r2, #2]
+ 402 0064 C9B2     		uxtb	r1, r1
+ 403 0066 2068     		ldr	r0, [r4]
+ 404 0068 000C     		lsrs	r0, r0, #16
+ 405 006a 0F25     		movs	r5, #15
+ 406 006c 2840     		ands	r0, r5
+ 407 006e 4D00     		lsls	r5, r1, #1
+ 408 0070 6918     		adds	r1, r5, r1
+ 409 0072 8D00     		lsls	r5, r1, #2
+ 410 0074 5D19     		adds	r5, r3, r5
+ 411 0076 A870     		strb	r0, [r5, #2]
+ 129:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[1] = CAN_RX_DATA_BYTE2(mailbox);
+ 412              		.loc 1 129 0 discriminator 4
+ 413 0078 9178     		ldrb	r1, [r2, #2]
+ 414 007a C9B2     		uxtb	r1, r1
+ 415 007c A568     		ldr	r5, [r4, #8]
+ 416 007e 2D0E     		lsrs	r5, r5, #24
+ 417 0080 4800     		lsls	r0, r1, #1
+ 418 0082 4118     		adds	r1, r0, r1
+ 419 0084 8800     		lsls	r0, r1, #2
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 12
+
+
+ 420 0086 1818     		adds	r0, r3, r0
+ 421 0088 C570     		strb	r5, [r0, #3]
+ 130:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[2] = CAN_RX_DATA_BYTE3(mailbox);
+ 422              		.loc 1 130 0 discriminator 4
+ 423 008a 9178     		ldrb	r1, [r2, #2]
+ 424 008c C9B2     		uxtb	r1, r1
+ 425 008e A068     		ldr	r0, [r4, #8]
+ 426 0090 000C     		lsrs	r0, r0, #16
+ 427 0092 C0B2     		uxtb	r0, r0
+ 428 0094 4D00     		lsls	r5, r1, #1
+ 429 0096 6918     		adds	r1, r5, r1
+ 430 0098 8D00     		lsls	r5, r1, #2
+ 431 009a 5D19     		adds	r5, r3, r5
+ 432 009c 2871     		strb	r0, [r5, #4]
+ 131:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[3] = CAN_RX_DATA_BYTE4(mailbox);
+ 433              		.loc 1 131 0 discriminator 4
+ 434 009e 9178     		ldrb	r1, [r2, #2]
+ 435 00a0 C9B2     		uxtb	r1, r1
+ 436 00a2 A068     		ldr	r0, [r4, #8]
+ 437 00a4 000A     		lsrs	r0, r0, #8
+ 438 00a6 C0B2     		uxtb	r0, r0
+ 439 00a8 4D00     		lsls	r5, r1, #1
+ 440 00aa 6918     		adds	r1, r5, r1
+ 441 00ac 8D00     		lsls	r5, r1, #2
+ 442 00ae 5D19     		adds	r5, r3, r5
+ 443 00b0 6871     		strb	r0, [r5, #5]
+ 132:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[4] = CAN_RX_DATA_BYTE5(mailbox);
+ 444              		.loc 1 132 0 discriminator 4
+ 445 00b2 9178     		ldrb	r1, [r2, #2]
+ 446 00b4 C9B2     		uxtb	r1, r1
+ 447 00b6 A568     		ldr	r5, [r4, #8]
+ 448 00b8 EDB2     		uxtb	r5, r5
+ 449 00ba 4800     		lsls	r0, r1, #1
+ 450 00bc 4118     		adds	r1, r0, r1
+ 451 00be 8800     		lsls	r0, r1, #2
+ 452 00c0 1818     		adds	r0, r3, r0
+ 453 00c2 8571     		strb	r5, [r0, #6]
+ 133:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[5] = CAN_RX_DATA_BYTE6(mailbox);
+ 454              		.loc 1 133 0 discriminator 4
+ 455 00c4 9178     		ldrb	r1, [r2, #2]
+ 456 00c6 C9B2     		uxtb	r1, r1
+ 457 00c8 E568     		ldr	r5, [r4, #12]
+ 458 00ca 2D0E     		lsrs	r5, r5, #24
+ 459 00cc 4800     		lsls	r0, r1, #1
+ 460 00ce 4118     		adds	r1, r0, r1
+ 461 00d0 8800     		lsls	r0, r1, #2
+ 462 00d2 1818     		adds	r0, r3, r0
+ 463 00d4 C571     		strb	r5, [r0, #7]
+ 134:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[6] = CAN_RX_DATA_BYTE7(mailbox);
+ 464              		.loc 1 134 0 discriminator 4
+ 465 00d6 9178     		ldrb	r1, [r2, #2]
+ 466 00d8 C9B2     		uxtb	r1, r1
+ 467 00da E068     		ldr	r0, [r4, #12]
+ 468 00dc 000C     		lsrs	r0, r0, #16
+ 469 00de C0B2     		uxtb	r0, r0
+ 470 00e0 4D00     		lsls	r5, r1, #1
+ 471 00e2 6918     		adds	r1, r5, r1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 13
+
+
+ 472 00e4 8D00     		lsls	r5, r1, #2
+ 473 00e6 5D19     		adds	r5, r3, r5
+ 474 00e8 2872     		strb	r0, [r5, #8]
+ 135:CAN_Stuff.c   ****     latestMessage[latestMessageTail].data[7] = CAN_RX_DATA_BYTE8(mailbox);
+ 475              		.loc 1 135 0 discriminator 4
+ 476 00ea 9178     		ldrb	r1, [r2, #2]
+ 477 00ec C9B2     		uxtb	r1, r1
+ 478 00ee E068     		ldr	r0, [r4, #12]
+ 479 00f0 000A     		lsrs	r0, r0, #8
+ 480 00f2 C0B2     		uxtb	r0, r0
+ 481 00f4 4D00     		lsls	r5, r1, #1
+ 482 00f6 6918     		adds	r1, r5, r1
+ 483 00f8 8D00     		lsls	r5, r1, #2
+ 484 00fa 5D19     		adds	r5, r3, r5
+ 485 00fc 6872     		strb	r0, [r5, #9]
+ 136:CAN_Stuff.c   ****     countAddFIFO();
+ 486              		.loc 1 136 0 discriminator 4
+ 487 00fe 9278     		ldrb	r2, [r2, #2]
+ 488 0100 D2B2     		uxtb	r2, r2
+ 489 0102 E068     		ldr	r0, [r4, #12]
+ 490 0104 C0B2     		uxtb	r0, r0
+ 491 0106 5100     		lsls	r1, r2, #1
+ 492 0108 8A18     		adds	r2, r1, r2
+ 493 010a 9100     		lsls	r1, r2, #2
+ 494 010c 5B18     		adds	r3, r3, r1
+ 495 010e 9872     		strb	r0, [r3, #10]
+ 137:CAN_Stuff.c   **** 
+ 496              		.loc 1 137 0 discriminator 4
+ 497 0110 FFF7FEFF 		bl	countAddFIFO
+ 498              	.LVL17:
+ 140:CAN_Stuff.c   **** }
+ 499              		.loc 1 140 0 discriminator 4
+ 500 0114 2268     		ldr	r2, [r4]
+ 501 0116 0123     		movs	r3, #1
+ 502 0118 1343     		orrs	r3, r2
+ 503 011a 2360     		str	r3, [r4]
+ 141:CAN_Stuff.c   **** 
+ 504              		.loc 1 141 0 discriminator 4
+ 505              		@ sp needed
+ 506 011c 70BD     		pop	{r4, r5, r6, pc}
+ 507              	.L28:
+ 508 011e C046     		.align	2
+ 509              	.L27:
+ 510 0120 00000000 		.word	.LANCHOR0
+ 511 0124 00002E40 		.word	1076756480
+ 512 0128 08002E40 		.word	1076756488
+ 513 012c A0002E40 		.word	1076756640
+ 514 0130 00000000 		.word	latestMessage
+ 515              		.cfi_endproc
+ 516              	.LFE36:
+ 517              		.size	CAN_FLAG_ISR, .-CAN_FLAG_ISR
+ 518              		.section	.text.countRemoveFIFO,"ax",%progbits
+ 519              		.align	2
+ 520              		.global	countRemoveFIFO
+ 521              		.code	16
+ 522              		.thumb_func
+ 523              		.type	countRemoveFIFO, %function
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 14
+
+
+ 524              	countRemoveFIFO:
+ 525              	.LFB40:
+ 189:CAN_Stuff.c   **** 
+ 190:CAN_Stuff.c   **** void countRemoveFIFO(){
+ 526              		.loc 1 190 0
+ 527              		.cfi_startproc
+ 528              		@ args = 0, pretend = 0, frame = 0
+ 529              		@ frame_needed = 0, uses_anonymous_args = 0
+ 530 0000 10B5     		push	{r4, lr}
+ 531              		.cfi_def_cfa_offset 8
+ 532              		.cfi_offset 4, -8
+ 533              		.cfi_offset 14, -4
+ 191:CAN_Stuff.c   ****     if(FIFOSize() > 0) {
+ 534              		.loc 1 191 0
+ 535 0002 FFF7FEFF 		bl	FIFOSize
+ 536              	.LVL18:
+ 537 0006 0028     		cmp	r0, #0
+ 538 0008 0BD0     		beq	.L29
+ 192:CAN_Stuff.c   ****         latestMessageHead++;
+ 539              		.loc 1 192 0
+ 540 000a 064A     		ldr	r2, .L31
+ 541 000c 5378     		ldrb	r3, [r2, #1]
+ 542 000e 0133     		adds	r3, r3, #1
+ 543 0010 DBB2     		uxtb	r3, r3
+ 544 0012 5370     		strb	r3, [r2, #1]
+ 193:CAN_Stuff.c   ****         if(latestMessageHead >= FIFO_SIZE) {
+ 545              		.loc 1 193 0
+ 546 0014 5378     		ldrb	r3, [r2, #1]
+ 547 0016 DBB2     		uxtb	r3, r3
+ 548 0018 0F2B     		cmp	r3, #15
+ 549 001a 02D9     		bls	.L29
+ 194:CAN_Stuff.c   ****             latestMessageHead = 0;
+ 550              		.loc 1 194 0
+ 551 001c 0022     		movs	r2, #0
+ 552 001e 014B     		ldr	r3, .L31
+ 553 0020 5A70     		strb	r2, [r3, #1]
+ 554              	.L29:
+ 195:CAN_Stuff.c   ****         }
+ 196:CAN_Stuff.c   ****     }
+ 197:CAN_Stuff.c   **** }
+ 555              		.loc 1 197 0
+ 556              		@ sp needed
+ 557 0022 10BD     		pop	{r4, pc}
+ 558              	.L32:
+ 559              		.align	2
+ 560              	.L31:
+ 561 0024 00000000 		.word	.LANCHOR0
+ 562              		.cfi_endproc
+ 563              	.LFE40:
+ 564              		.size	countRemoveFIFO, .-countRemoveFIFO
+ 565              		.section	.text.PollAndReceiveCANPacket,"ax",%progbits
+ 566              		.align	2
+ 567              		.global	PollAndReceiveCANPacket
+ 568              		.code	16
+ 569              		.thumb_func
+ 570              		.type	PollAndReceiveCANPacket, %function
+ 571              	PollAndReceiveCANPacket:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 15
+
+
+ 572              	.LFB37:
+ 144:CAN_Stuff.c   ****     if(!receivedPacket)
+ 573              		.loc 1 144 0
+ 574              		.cfi_startproc
+ 575              		@ args = 0, pretend = 0, frame = 8
+ 576              		@ frame_needed = 0, uses_anonymous_args = 0
+ 577              	.LVL19:
+ 578 0000 10B5     		push	{r4, lr}
+ 579              		.cfi_def_cfa_offset 8
+ 580              		.cfi_offset 4, -8
+ 581              		.cfi_offset 14, -4
+ 582 0002 82B0     		sub	sp, sp, #8
+ 583              		.cfi_def_cfa_offset 16
+ 584 0004 041E     		subs	r4, r0, #0
+ 145:CAN_Stuff.c   ****         return ERROR_NULL_POINTER;
+ 585              		.loc 1 145 0
+ 586 0006 17D0     		beq	.L35
+ 148:CAN_Stuff.c   ****     if(size)
+ 587              		.loc 1 148 0
+ 588 0008 FFF7FEFF 		bl	FIFOSize
+ 589              	.LVL20:
+ 590 000c 6B46     		mov	r3, sp
+ 591 000e D871     		strb	r0, [r3, #7]
+ 592 0010 0733     		adds	r3, r3, #7
+ 149:CAN_Stuff.c   ****     {
+ 593              		.loc 1 149 0
+ 594 0012 1B78     		ldrb	r3, [r3]
+ 595 0014 002B     		cmp	r3, #0
+ 596 0016 11D0     		beq	.L36
+ 151:CAN_Stuff.c   ****         countRemoveFIFO();
+ 597              		.loc 1 151 0
+ 598 0018 0A4B     		ldr	r3, .L37
+ 599 001a 5B78     		ldrb	r3, [r3, #1]
+ 600 001c DBB2     		uxtb	r3, r3
+ 601 001e 5A00     		lsls	r2, r3, #1
+ 602 0020 D318     		adds	r3, r2, r3
+ 603 0022 9900     		lsls	r1, r3, #2
+ 604 0024 084B     		ldr	r3, .L37+4
+ 605 0026 5918     		adds	r1, r3, r1
+ 606 0028 0C22     		movs	r2, #12
+ 607 002a 2000     		movs	r0, r4
+ 608 002c FFF7FEFF 		bl	memcpy
+ 609              	.LVL21:
+ 152:CAN_Stuff.c   ****         return ERROR_NONE;
+ 610              		.loc 1 152 0
+ 611 0030 FFF7FEFF 		bl	countRemoveFIFO
+ 612              	.LVL22:
+ 153:CAN_Stuff.c   ****     }
+ 613              		.loc 1 153 0
+ 614 0034 0020     		movs	r0, #0
+ 615 0036 02E0     		b	.L34
+ 616              	.LVL23:
+ 617              	.L35:
+ 146:CAN_Stuff.c   ****     
+ 618              		.loc 1 146 0
+ 619 0038 0220     		movs	r0, #2
+ 620              	.LVL24:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 16
+
+
+ 621 003a 00E0     		b	.L34
+ 622              	.L36:
+ 156:CAN_Stuff.c   **** }
+ 623              		.loc 1 156 0
+ 624 003c 0220     		movs	r0, #2
+ 625              	.L34:
+ 157:CAN_Stuff.c   **** 
+ 626              		.loc 1 157 0
+ 627 003e 02B0     		add	sp, sp, #8
+ 628              		@ sp needed
+ 629              	.LVL25:
+ 630 0040 10BD     		pop	{r4, pc}
+ 631              	.L38:
+ 632 0042 C046     		.align	2
+ 633              	.L37:
+ 634 0044 00000000 		.word	.LANCHOR0
+ 635 0048 00000000 		.word	latestMessage
+ 636              		.cfi_endproc
+ 637              	.LFE37:
+ 638              		.size	PollAndReceiveCANPacket, .-PollAndReceiveCANPacket
+ 639              		.section	.text.s2x,"ax",%progbits
+ 640              		.align	2
+ 641              		.global	s2x
+ 642              		.code	16
+ 643              		.thumb_func
+ 644              		.type	s2x, %function
+ 645              	s2x:
+ 646              	.LFB41:
+ 647              		.file 2 "UART_Interface.c"
+   1:UART_Interface.c **** /* ========================================
+   2:UART_Interface.c ****  *
+   3:UART_Interface.c ****  * Copyright YOUR COMPANY, THE YEAR
+   4:UART_Interface.c ****  * All Rights Reserved
+   5:UART_Interface.c ****  * UNPUBLISHED, LICENSED SOFTWARE.
+   6:UART_Interface.c ****  *
+   7:UART_Interface.c ****  * CONFIDENTIAL AND PROPRIETARY INFORMATION
+   8:UART_Interface.c ****  * WHICH IS THE PROPERTY OF your company.
+   9:UART_Interface.c ****  *
+  10:UART_Interface.c ****  * ========================================
+  11:UART_Interface.c **** */
+  12:UART_Interface.c **** #include "project.h"
+  13:UART_Interface.c **** #include "cytypes.h"
+  14:UART_Interface.c **** #include "cyfitter.h"
+  15:UART_Interface.c **** #include "CAN_Stuff.c"
+  16:UART_Interface.c **** 
+  17:UART_Interface.c **** char8 uart_tx[100];
+  18:UART_Interface.c **** char8 uart_rx[100];
+  19:UART_Interface.c **** 
+  20:UART_Interface.c **** uint8 s2x(char8 c) {
+ 648              		.loc 2 20 0
+ 649              		.cfi_startproc
+ 650              		@ args = 0, pretend = 0, frame = 0
+ 651              		@ frame_needed = 0, uses_anonymous_args = 0
+ 652              		@ link register save eliminated.
+ 653              	.LVL26:
+  21:UART_Interface.c ****     switch(c) {
+ 654              		.loc 2 21 0
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 17
+
+
+ 655 0000 3138     		subs	r0, r0, #49
+ 656              	.LVL27:
+ 657 0002 C3B2     		uxtb	r3, r0
+ 658 0004 352B     		cmp	r3, #53
+ 659 0006 2BD8     		bhi	.L40
+ 660 0008 9800     		lsls	r0, r3, #2
+ 661 000a 174B     		ldr	r3, .L64
+ 662 000c 1B58     		ldr	r3, [r3, r0]
+ 663 000e 9F46     		mov	pc, r3
+ 664              		.section	.rodata
+ 665              		.align	2
+ 666              	.L42:
+ 667 0000 10000000 		.word	.L41
+ 668 0004 64000000 		.word	.L63
+ 669 0008 14000000 		.word	.L44
+ 670 000c 18000000 		.word	.L45
+ 671 0010 1C000000 		.word	.L46
+ 672 0014 20000000 		.word	.L47
+ 673 0018 24000000 		.word	.L48
+ 674 001c 28000000 		.word	.L49
+ 675 0020 2C000000 		.word	.L50
+ 676 0024 60000000 		.word	.L40
+ 677 0028 60000000 		.word	.L40
+ 678 002c 60000000 		.word	.L40
+ 679 0030 60000000 		.word	.L40
+ 680 0034 60000000 		.word	.L40
+ 681 0038 60000000 		.word	.L40
+ 682 003c 60000000 		.word	.L40
+ 683 0040 30000000 		.word	.L51
+ 684 0044 34000000 		.word	.L52
+ 685 0048 38000000 		.word	.L53
+ 686 004c 3C000000 		.word	.L54
+ 687 0050 40000000 		.word	.L55
+ 688 0054 44000000 		.word	.L56
+ 689 0058 60000000 		.word	.L40
+ 690 005c 60000000 		.word	.L40
+ 691 0060 60000000 		.word	.L40
+ 692 0064 60000000 		.word	.L40
+ 693 0068 60000000 		.word	.L40
+ 694 006c 60000000 		.word	.L40
+ 695 0070 60000000 		.word	.L40
+ 696 0074 60000000 		.word	.L40
+ 697 0078 60000000 		.word	.L40
+ 698 007c 60000000 		.word	.L40
+ 699 0080 60000000 		.word	.L40
+ 700 0084 60000000 		.word	.L40
+ 701 0088 60000000 		.word	.L40
+ 702 008c 60000000 		.word	.L40
+ 703 0090 60000000 		.word	.L40
+ 704 0094 60000000 		.word	.L40
+ 705 0098 60000000 		.word	.L40
+ 706 009c 60000000 		.word	.L40
+ 707 00a0 60000000 		.word	.L40
+ 708 00a4 60000000 		.word	.L40
+ 709 00a8 60000000 		.word	.L40
+ 710 00ac 60000000 		.word	.L40
+ 711 00b0 60000000 		.word	.L40
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 18
+
+
+ 712 00b4 60000000 		.word	.L40
+ 713 00b8 60000000 		.word	.L40
+ 714 00bc 60000000 		.word	.L40
+ 715 00c0 48000000 		.word	.L57
+ 716 00c4 4C000000 		.word	.L58
+ 717 00c8 50000000 		.word	.L59
+ 718 00cc 54000000 		.word	.L60
+ 719 00d0 58000000 		.word	.L61
+ 720 00d4 5C000000 		.word	.L62
+ 721              		.section	.text.s2x
+ 722              	.L41:
+  22:UART_Interface.c ****         case '1': return 1; case '2': return 2;
+ 723              		.loc 2 22 0
+ 724 0010 0120     		movs	r0, #1
+ 725 0012 28E0     		b	.L43
+ 726              	.L44:
+  23:UART_Interface.c ****         case '3': return 3; case '4': return 4;
+ 727              		.loc 2 23 0
+ 728 0014 0320     		movs	r0, #3
+ 729 0016 26E0     		b	.L43
+ 730              	.L45:
+ 731 0018 0420     		movs	r0, #4
+ 732 001a 24E0     		b	.L43
+ 733              	.L46:
+  24:UART_Interface.c ****         case '5': return 5; case '6': return 6;
+ 734              		.loc 2 24 0
+ 735 001c 0520     		movs	r0, #5
+ 736 001e 22E0     		b	.L43
+ 737              	.L47:
+ 738 0020 0620     		movs	r0, #6
+ 739 0022 20E0     		b	.L43
+ 740              	.L48:
+  25:UART_Interface.c ****         case '7': return 7; case '8': return 8;
+ 741              		.loc 2 25 0
+ 742 0024 0720     		movs	r0, #7
+ 743 0026 1EE0     		b	.L43
+ 744              	.L49:
+ 745 0028 0820     		movs	r0, #8
+ 746 002a 1CE0     		b	.L43
+ 747              	.L50:
+  26:UART_Interface.c ****         case '9': return 9; case 'A': return 10;
+ 748              		.loc 2 26 0
+ 749 002c 0920     		movs	r0, #9
+ 750 002e 1AE0     		b	.L43
+ 751              	.L51:
+ 752 0030 0A20     		movs	r0, #10
+ 753 0032 18E0     		b	.L43
+ 754              	.L52:
+  27:UART_Interface.c ****         case 'B': return 11;case 'C': return 12;
+ 755              		.loc 2 27 0
+ 756 0034 0B20     		movs	r0, #11
+ 757 0036 16E0     		b	.L43
+ 758              	.L53:
+ 759 0038 0C20     		movs	r0, #12
+ 760 003a 14E0     		b	.L43
+ 761              	.L54:
+  28:UART_Interface.c ****         case 'D': return 13;case 'E': return 14;
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 19
+
+
+ 762              		.loc 2 28 0
+ 763 003c 0D20     		movs	r0, #13
+ 764 003e 12E0     		b	.L43
+ 765              	.L55:
+ 766 0040 0E20     		movs	r0, #14
+ 767 0042 10E0     		b	.L43
+ 768              	.L56:
+  29:UART_Interface.c ****         case 'F': return 15;case 'a': return 10;
+ 769              		.loc 2 29 0
+ 770 0044 0F20     		movs	r0, #15
+ 771 0046 0EE0     		b	.L43
+ 772              	.L57:
+ 773 0048 0A20     		movs	r0, #10
+ 774 004a 0CE0     		b	.L43
+ 775              	.L58:
+  30:UART_Interface.c ****         case 'b': return 11;case 'c': return 12;
+ 776              		.loc 2 30 0
+ 777 004c 0B20     		movs	r0, #11
+ 778 004e 0AE0     		b	.L43
+ 779              	.L59:
+ 780 0050 0C20     		movs	r0, #12
+ 781 0052 08E0     		b	.L43
+ 782              	.L60:
+  31:UART_Interface.c ****         case 'd': return 13;case 'e': return 14;
+ 783              		.loc 2 31 0
+ 784 0054 0D20     		movs	r0, #13
+ 785 0056 06E0     		b	.L43
+ 786              	.L61:
+ 787 0058 0E20     		movs	r0, #14
+ 788 005a 04E0     		b	.L43
+ 789              	.L62:
+  32:UART_Interface.c ****         case 'f': return 15;default:  return 0;
+ 790              		.loc 2 32 0
+ 791 005c 0F20     		movs	r0, #15
+ 792 005e 02E0     		b	.L43
+ 793              	.L40:
+ 794 0060 0020     		movs	r0, #0
+ 795 0062 00E0     		b	.L43
+ 796              	.L63:
+  22:UART_Interface.c ****         case '3': return 3; case '4': return 4;
+ 797              		.loc 2 22 0
+ 798 0064 0220     		movs	r0, #2
+ 799              	.L43:
+  33:UART_Interface.c ****     }
+  34:UART_Interface.c **** }
+ 800              		.loc 2 34 0
+ 801              		@ sp needed
+ 802 0066 7047     		bx	lr
+ 803              	.L65:
+ 804              		.align	2
+ 805              	.L64:
+ 806 0068 00000000 		.word	.L42
+ 807              		.cfi_endproc
+ 808              	.LFE41:
+ 809              		.size	s2x, .-s2x
+ 810              		.section	.text.parseLine,"ax",%progbits
+ 811              		.align	2
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 20
+
+
+ 812              		.global	parseLine
+ 813              		.code	16
+ 814              		.thumb_func
+ 815              		.type	parseLine, %function
+ 816              	parseLine:
+ 817              	.LFB42:
+  35:UART_Interface.c **** 
+  36:UART_Interface.c **** CANPacket parseLine(CANPacket* p, char8 line[]) {
+ 818              		.loc 2 36 0
+ 819              		.cfi_startproc
+ 820              		@ args = 0, pretend = 0, frame = 8
+ 821              		@ frame_needed = 0, uses_anonymous_args = 0
+ 822              	.LVL28:
+ 823 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 824              		.cfi_def_cfa_offset 20
+ 825              		.cfi_offset 4, -20
+ 826              		.cfi_offset 5, -16
+ 827              		.cfi_offset 6, -12
+ 828              		.cfi_offset 7, -8
+ 829              		.cfi_offset 14, -4
+ 830 0002 5746     		mov	r7, r10
+ 831 0004 4646     		mov	r6, r8
+ 832 0006 C0B4     		push	{r6, r7}
+ 833              		.cfi_def_cfa_offset 28
+ 834              		.cfi_offset 8, -28
+ 835              		.cfi_offset 10, -24
+ 836 0008 83B0     		sub	sp, sp, #12
+ 837              		.cfi_def_cfa_offset 40
+ 838 000a 0190     		str	r0, [sp, #4]
+ 839 000c 8846     		mov	r8, r1
+ 840 000e 1600     		movs	r6, r2
+  37:UART_Interface.c ****     uint16 pr = (uint16) s2x(line[0]) << 10;
+ 841              		.loc 2 37 0
+ 842 0010 1078     		ldrb	r0, [r2]
+ 843              	.LVL29:
+ 844 0012 FFF7FEFF 		bl	s2x
+ 845              	.LVL30:
+ 846 0016 8002     		lsls	r0, r0, #10
+ 847 0018 85B2     		uxth	r5, r0
+ 848              	.LVL31:
+  38:UART_Interface.c ****     uint16 dg = (uint16) s2x(line[2]) << 6;
+ 849              		.loc 2 38 0
+ 850 001a B078     		ldrb	r0, [r6, #2]
+ 851 001c FFF7FEFF 		bl	s2x
+ 852              	.LVL32:
+ 853 0020 8001     		lsls	r0, r0, #6
+ 854 0022 84B2     		uxth	r4, r0
+ 855              	.LVL33:
+  39:UART_Interface.c ****     uint16 sn = (uint16) s2x(line[4]) << 4 | s2x(line[5]);
+ 856              		.loc 2 39 0
+ 857 0024 3079     		ldrb	r0, [r6, #4]
+ 858 0026 FFF7FEFF 		bl	s2x
+ 859              	.LVL34:
+ 860 002a 0701     		lsls	r7, r0, #4
+ 861 002c 7079     		ldrb	r0, [r6, #5]
+ 862 002e FFF7FEFF 		bl	s2x
+ 863              	.LVL35:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 21
+
+
+ 864 0032 3843     		orrs	r0, r7
+ 865 0034 80B2     		uxth	r0, r0
+ 866              	.LVL36:
+  40:UART_Interface.c ****     p->id = (pr | dg | sn);
+ 867              		.loc 2 40 0
+ 868 0036 2C43     		orrs	r4, r5
+ 869              	.LVL37:
+ 870 0038 0443     		orrs	r4, r0
+ 871 003a 4346     		mov	r3, r8
+ 872 003c 1C80     		strh	r4, [r3]
+  41:UART_Interface.c ****     p->dlc = 8;
+ 873              		.loc 2 41 0
+ 874 003e 0823     		movs	r3, #8
+ 875 0040 4246     		mov	r2, r8
+ 876 0042 9370     		strb	r3, [r2, #2]
+ 877              	.LVL38:
+ 878              	.LBB2:
+  42:UART_Interface.c ****     
+  43:UART_Interface.c ****     for (uint8 i = 0; i < 8; i++) {
+ 879              		.loc 2 43 0
+ 880 0044 0024     		movs	r4, #0
+ 881 0046 17E0     		b	.L67
+ 882              	.LVL39:
+ 883              	.L69:
+  44:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 884              		.loc 2 44 0
+ 885 0048 2700     		movs	r7, r4
+ 886 004a 072C     		cmp	r4, #7
+ 887 004c 0FD8     		bhi	.L70
+  45:UART_Interface.c ****                     (s2x(line[3*i+7])<<4) | s2x(line[3*i+8]) : 0;
+ 888              		.loc 2 45 0 discriminator 1
+ 889 004e 6500     		lsls	r5, r4, #1
+ 890 0050 2D19     		adds	r5, r5, r4
+ 891 0052 EB1D     		adds	r3, r5, #7
+ 892 0054 F05C     		ldrb	r0, [r6, r3]
+ 893 0056 FFF7FEFF 		bl	s2x
+ 894              	.LVL40:
+ 895 005a 0301     		lsls	r3, r0, #4
+ 896 005c 9A46     		mov	r10, r3
+ 897 005e 0835     		adds	r5, r5, #8
+ 898 0060 705D     		ldrb	r0, [r6, r5]
+ 899 0062 FFF7FEFF 		bl	s2x
+ 900              	.LVL41:
+  44:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 901              		.loc 2 44 0 discriminator 1
+ 902 0066 5346     		mov	r3, r10
+ 903 0068 1843     		orrs	r0, r3
+ 904 006a C0B2     		uxtb	r0, r0
+ 905 006c 00E0     		b	.L68
+ 906              	.L70:
+  44:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 907              		.loc 2 44 0 is_stmt 0
+ 908 006e 0020     		movs	r0, #0
+ 909              	.L68:
+  44:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 910              		.loc 2 44 0 discriminator 4
+ 911 0070 4744     		add	r7, r7, r8
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 22
+
+
+ 912 0072 F870     		strb	r0, [r7, #3]
+  43:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 913              		.loc 2 43 0 is_stmt 1 discriminator 4
+ 914 0074 0134     		adds	r4, r4, #1
+ 915              	.LVL42:
+ 916 0076 E4B2     		uxtb	r4, r4
+ 917              	.LVL43:
+ 918              	.L67:
+  43:UART_Interface.c ****         p->data[i] = i < p->dlc ? 
+ 919              		.loc 2 43 0 is_stmt 0 discriminator 2
+ 920 0078 072C     		cmp	r4, #7
+ 921 007a E5D9     		bls	.L69
+ 922              	.LBE2:
+  46:UART_Interface.c ****     }
+  47:UART_Interface.c **** }
+ 923              		.loc 2 47 0 is_stmt 1
+ 924 007c 0198     		ldr	r0, [sp, #4]
+ 925 007e 03B0     		add	sp, sp, #12
+ 926              		@ sp needed
+ 927              	.LVL44:
+ 928              	.LVL45:
+ 929              	.LVL46:
+ 930 0080 0CBC     		pop	{r2, r3}
+ 931 0082 9046     		mov	r8, r2
+ 932 0084 9A46     		mov	r10, r3
+ 933 0086 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 934              		.cfi_endproc
+ 935              	.LFE42:
+ 936              		.size	parseLine, .-parseLine
+ 937              		.section	.text.decodeFromBytes,"ax",%progbits
+ 938              		.align	2
+ 939              		.global	decodeFromBytes
+ 940              		.code	16
+ 941              		.thumb_func
+ 942              		.type	decodeFromBytes, %function
+ 943              	decodeFromBytes:
+ 944              	.LFB43:
+  48:UART_Interface.c **** 
+  49:UART_Interface.c **** uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]) {       
+ 945              		.loc 2 49 0
+ 946              		.cfi_startproc
+ 947              		@ args = 0, pretend = 0, frame = 0
+ 948              		@ frame_needed = 0, uses_anonymous_args = 0
+ 949              	.LVL47:
+ 950 0000 10B5     		push	{r4, lr}
+ 951              		.cfi_def_cfa_offset 8
+ 952              		.cfi_offset 4, -8
+ 953              		.cfi_offset 14, -4
+ 954 0002 0300     		movs	r3, r0
+ 955              	.LVL48:
+  50:UART_Interface.c ****     uint32_t result = 0;
+  51:UART_Interface.c ****     if (msb_index < lsb_index)
+ 956              		.loc 2 51 0
+ 957 0004 8842     		cmp	r0, r1
+ 958 0006 06DB     		blt	.L77
+ 959 0008 0020     		movs	r0, #0
+ 960              	.LVL49:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 23
+
+
+ 961 000a 0CE0     		b	.L73
+ 962              	.LVL50:
+ 963              	.L74:
+ 964              	.LBB3:
+  52:UART_Interface.c ****         for (int i = msb_index; i <= lsb_index; i++)
+  53:UART_Interface.c ****             result = result << 8 | data[i];
+ 965              		.loc 2 53 0 discriminator 3
+ 966 000c 0002     		lsls	r0, r0, #8
+ 967              	.LVL51:
+ 968 000e D45C     		ldrb	r4, [r2, r3]
+ 969 0010 2043     		orrs	r0, r4
+ 970              	.LVL52:
+  52:UART_Interface.c ****         for (int i = msb_index; i <= lsb_index; i++)
+ 971              		.loc 2 52 0 discriminator 3
+ 972 0012 0133     		adds	r3, r3, #1
+ 973              	.LVL53:
+ 974 0014 00E0     		b	.L72
+ 975              	.LVL54:
+ 976              	.L77:
+ 977              	.LBE3:
+ 978 0016 0020     		movs	r0, #0
+ 979              	.LVL55:
+ 980              	.L72:
+ 981              	.LBB4:
+  52:UART_Interface.c ****         for (int i = msb_index; i <= lsb_index; i++)
+ 982              		.loc 2 52 0 is_stmt 0 discriminator 1
+ 983 0018 8B42     		cmp	r3, r1
+ 984 001a F7DD     		ble	.L74
+ 985 001c 05E0     		b	.L75
+ 986              	.LVL56:
+ 987              	.L76:
+ 988              	.LBE4:
+ 989              	.LBB5:
+  54:UART_Interface.c ****     else
+  55:UART_Interface.c ****         for (int i = msb_index; i >= lsb_index; i--)
+  56:UART_Interface.c ****             result = (result | data[i]) << 8;
+ 990              		.loc 2 56 0 is_stmt 1 discriminator 3
+ 991 001e D45C     		ldrb	r4, [r2, r3]
+ 992 0020 2043     		orrs	r0, r4
+ 993              	.LVL57:
+ 994 0022 0002     		lsls	r0, r0, #8
+ 995              	.LVL58:
+  55:UART_Interface.c ****             result = (result | data[i]) << 8;
+ 996              		.loc 2 55 0 discriminator 3
+ 997 0024 013B     		subs	r3, r3, #1
+ 998              	.LVL59:
+ 999              	.L73:
+  55:UART_Interface.c ****             result = (result | data[i]) << 8;
+ 1000              		.loc 2 55 0 is_stmt 0 discriminator 1
+ 1001 0026 8B42     		cmp	r3, r1
+ 1002 0028 F9DA     		bge	.L76
+ 1003              	.LVL60:
+ 1004              	.L75:
+ 1005              	.LBE5:
+  57:UART_Interface.c ****     return result;
+  58:UART_Interface.c **** }
+ 1006              		.loc 2 58 0 is_stmt 1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 24
+
+
+ 1007              		@ sp needed
+ 1008 002a 10BD     		pop	{r4, pc}
+ 1009              		.cfi_endproc
+ 1010              	.LFE43:
+ 1011              		.size	decodeFromBytes, .-decodeFromBytes
+ 1012              		.section	.text.printPacket,"ax",%progbits
+ 1013              		.align	2
+ 1014              		.global	printPacket
+ 1015              		.code	16
+ 1016              		.thumb_func
+ 1017              		.type	printPacket, %function
+ 1018              	printPacket:
+ 1019              	.LFB44:
+  59:UART_Interface.c **** 
+  60:UART_Interface.c **** void printPacket(CANPacket* packet) {
+ 1020              		.loc 2 60 0
+ 1021              		.cfi_startproc
+ 1022              		@ args = 0, pretend = 0, frame = 104
+ 1023              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1024              	.LVL61:
+ 1025 0000 70B5     		push	{r4, r5, r6, lr}
+ 1026              		.cfi_def_cfa_offset 16
+ 1027              		.cfi_offset 4, -16
+ 1028              		.cfi_offset 5, -12
+ 1029              		.cfi_offset 6, -8
+ 1030              		.cfi_offset 14, -4
+ 1031 0002 9CB0     		sub	sp, sp, #112
+ 1032              		.cfi_def_cfa_offset 128
+ 1033 0004 0400     		movs	r4, r0
+  61:UART_Interface.c ****     char8 info[100];
+  62:UART_Interface.c ****     uint8_t packetID = packet->data[0];
+ 1034              		.loc 2 62 0
+ 1035 0006 C578     		ldrb	r5, [r0, #3]
+ 1036              	.LVL62:
+  63:UART_Interface.c ****     sprintf(info,"id: %#02X ",packetID);
+ 1037              		.loc 2 63 0
+ 1038 0008 2A00     		movs	r2, r5
+ 1039 000a 1F49     		ldr	r1, .L85
+ 1040 000c 03A8     		add	r0, sp, #12
+ 1041              	.LVL63:
+ 1042 000e FFF7FEFF 		bl	sprintf
+ 1043              	.LVL64:
+  64:UART_Interface.c ****     UART_UartPutString(info);
+ 1044              		.loc 2 64 0
+ 1045 0012 03A8     		add	r0, sp, #12
+ 1046 0014 FFF7FEFF 		bl	UART_UartPutString
+ 1047              	.LVL65:
+  65:UART_Interface.c ****     switch(packetID) {
+ 1048              		.loc 2 65 0
+ 1049 0018 092D     		cmp	r5, #9
+ 1050 001a 1DD0     		beq	.L80
+ 1051 001c F62D     		cmp	r5, #246
+ 1052 001e 0CD0     		beq	.L81
+ 1053 0020 032D     		cmp	r5, #3
+ 1054 0022 20D1     		bne	.L84
+  66:UART_Interface.c ****         case 0x03: // PWM Set
+  67:UART_Interface.c ****             sprintf(info,"pwm_val: %i",(int16_t) decodeFromBytes(1,2,packet->data));
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 25
+
+
+ 1055              		.loc 2 67 0
+ 1056 0024 E21C     		adds	r2, r4, #3
+ 1057 0026 0221     		movs	r1, #2
+ 1058 0028 0120     		movs	r0, #1
+ 1059 002a FFF7FEFF 		bl	decodeFromBytes
+ 1060              	.LVL66:
+ 1061 002e 02B2     		sxth	r2, r0
+ 1062 0030 1649     		ldr	r1, .L85+4
+ 1063 0032 03A8     		add	r0, sp, #12
+ 1064 0034 FFF7FEFF 		bl	sprintf
+ 1065              	.LVL67:
+  68:UART_Interface.c ****             break;
+ 1066              		.loc 2 68 0
+ 1067 0038 1EE0     		b	.L83
+ 1068              	.L81:
+  69:UART_Interface.c ****         case 0xF6: // Telemetry Report
+  70:UART_Interface.c ****             sprintf(info,"SN: %#02X TTC: %#02X data: %i",packet->data[1],packet->data[2],(int32_t) 
+ 1069              		.loc 2 70 0
+ 1070 003a 2579     		ldrb	r5, [r4, #4]
+ 1071              	.LVL68:
+ 1072 003c 6679     		ldrb	r6, [r4, #5]
+ 1073 003e E21C     		adds	r2, r4, #3
+ 1074 0040 0621     		movs	r1, #6
+ 1075 0042 0320     		movs	r0, #3
+ 1076 0044 FFF7FEFF 		bl	decodeFromBytes
+ 1077              	.LVL69:
+ 1078 0048 0090     		str	r0, [sp]
+ 1079 004a 3300     		movs	r3, r6
+ 1080 004c 2A00     		movs	r2, r5
+ 1081 004e 1049     		ldr	r1, .L85+8
+ 1082 0050 03A8     		add	r0, sp, #12
+ 1083 0052 FFF7FEFF 		bl	sprintf
+ 1084              	.LVL70:
+  71:UART_Interface.c ****             break;
+ 1085              		.loc 2 71 0
+ 1086 0056 0FE0     		b	.L83
+ 1087              	.LVL71:
+ 1088              	.L80:
+  72:UART_Interface.c ****         case 0x09:
+  73:UART_Interface.c ****             sprintf(info,"SN: %#02X val: %i LIMIT##################################################
+ 1089              		.loc 2 73 0
+ 1090 0058 2279     		ldrb	r2, [r4, #4]
+ 1091 005a 6379     		ldrb	r3, [r4, #5]
+ 1092 005c 0D49     		ldr	r1, .L85+12
+ 1093 005e 03A8     		add	r0, sp, #12
+ 1094 0060 FFF7FEFF 		bl	sprintf
+ 1095              	.LVL72:
+  74:UART_Interface.c ****             break;
+ 1096              		.loc 2 74 0
+ 1097 0064 08E0     		b	.L83
+ 1098              	.L84:
+  75:UART_Interface.c ****         default:
+  76:UART_Interface.c ****             sprintf(info,"not recognized");
+ 1099              		.loc 2 76 0
+ 1100 0066 03AB     		add	r3, sp, #12
+ 1101 0068 0B4A     		ldr	r2, .L85+16
+ 1102 006a 13CA     		ldmia	r2!, {r0, r1, r4}
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 26
+
+
+ 1103 006c 13C3     		stmia	r3!, {r0, r1, r4}
+ 1104              	.LVL73:
+ 1105 006e 1900     		movs	r1, r3
+ 1106 0070 1388     		ldrh	r3, [r2]
+ 1107 0072 0B80     		strh	r3, [r1]
+ 1108 0074 9378     		ldrb	r3, [r2, #2]
+ 1109 0076 8B70     		strb	r3, [r1, #2]
+ 1110              	.LVL74:
+ 1111              	.L83:
+  77:UART_Interface.c ****     }
+  78:UART_Interface.c ****     UART_UartPutString(info);
+ 1112              		.loc 2 78 0
+ 1113 0078 03A8     		add	r0, sp, #12
+ 1114 007a FFF7FEFF 		bl	UART_UartPutString
+ 1115              	.LVL75:
+  79:UART_Interface.c ****     UART_UartPutString("\r\n");
+ 1116              		.loc 2 79 0
+ 1117 007e 0748     		ldr	r0, .L85+20
+ 1118 0080 FFF7FEFF 		bl	UART_UartPutString
+ 1119              	.LVL76:
+  80:UART_Interface.c **** }
+ 1120              		.loc 2 80 0
+ 1121 0084 1CB0     		add	sp, sp, #112
+ 1122              		@ sp needed
+ 1123 0086 70BD     		pop	{r4, r5, r6, pc}
+ 1124              	.L86:
+ 1125              		.align	2
+ 1126              	.L85:
+ 1127 0088 00000000 		.word	.LC10
+ 1128 008c 0C000000 		.word	.LC12
+ 1129 0090 18000000 		.word	.LC14
+ 1130 0094 38000000 		.word	.LC16
+ 1131 0098 8C000000 		.word	.LC18
+ 1132 009c 9C000000 		.word	.LC20
+ 1133              		.cfi_endproc
+ 1134              	.LFE44:
+ 1135              		.size	printPacket, .-printPacket
+ 1136              		.comm	uart_rx,100,4
+ 1137              		.comm	uart_tx,100,4
+ 1138              		.global	CAN_time_LED
+ 1139              		.global	receiveMailboxNumber
+ 1140              		.comm	messagePWM,16,4
+ 1141              		.comm	packet,12,4
+ 1142              		.global	mailbox
+ 1143              		.comm	rxMailbox,16,4
+ 1144              		.comm	deviceGroup,4,4
+ 1145              		.comm	deviceAddress,4,4
+ 1146              		.global	latestMessageFull
+ 1147              		.global	latestMessageTail
+ 1148              		.global	latestMessageHead
+ 1149              		.comm	latestMessage,192,4
+ 1150              		.global	messageReadFlag
+ 1151              		.global	messagePresentFlag
+ 1152              		.data
+ 1153              		.type	receiveMailboxNumber, %object
+ 1154              		.size	receiveMailboxNumber, 1
+ 1155              	receiveMailboxNumber:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 27
+
+
+ 1156 0000 FF       		.byte	-1
+ 1157              		.type	messagePresentFlag, %object
+ 1158              		.size	messagePresentFlag, 1
+ 1159              	messagePresentFlag:
+ 1160 0001 FF       		.byte	-1
+ 1161              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 1162              		.align	2
+ 1163              	.LC10:
+ 1164 0000 69643A20 		.ascii	"id: %#02X \000"
+ 1164      25233032 
+ 1164      582000
+ 1165 000b 00       		.space	1
+ 1166              	.LC12:
+ 1167 000c 70776D5F 		.ascii	"pwm_val: %i\000"
+ 1167      76616C3A 
+ 1167      20256900 
+ 1168              	.LC14:
+ 1169 0018 534E3A20 		.ascii	"SN: %#02X TTC: %#02X data: %i\000"
+ 1169      25233032 
+ 1169      58205454 
+ 1169      433A2025 
+ 1169      23303258 
+ 1170 0036 0000     		.space	2
+ 1171              	.LC16:
+ 1172 0038 534E3A20 		.ascii	"SN: %#02X val: %i LIMIT############################"
+ 1172      25233032 
+ 1172      58207661 
+ 1172      6C3A2025 
+ 1172      69204C49 
+ 1173 006b 23232323 		.ascii	"##############################\000"
+ 1173      23232323 
+ 1173      23232323 
+ 1173      23232323 
+ 1173      23232323 
+ 1174 008a 0000     		.space	2
+ 1175              	.LC18:
+ 1176 008c 6E6F7420 		.ascii	"not recognized\000"
+ 1176      7265636F 
+ 1176      676E697A 
+ 1176      656400
+ 1177 009b 00       		.space	1
+ 1178              	.LC20:
+ 1179 009c 0D0A00   		.ascii	"\015\012\000"
+ 1180              		.bss
+ 1181              		.align	2
+ 1182              		.set	.LANCHOR0,. + 0
+ 1183              		.type	latestMessageFull, %object
+ 1184              		.size	latestMessageFull, 1
+ 1185              	latestMessageFull:
+ 1186 0000 00       		.space	1
+ 1187              		.type	latestMessageHead, %object
+ 1188              		.size	latestMessageHead, 1
+ 1189              	latestMessageHead:
+ 1190 0001 00       		.space	1
+ 1191              		.type	latestMessageTail, %object
+ 1192              		.size	latestMessageTail, 1
+ 1193              	latestMessageTail:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 28
+
+
+ 1194 0002 00       		.space	1
+ 1195 0003 00       		.space	1
+ 1196              		.type	CAN_time_LED, %object
+ 1197              		.size	CAN_time_LED, 2
+ 1198              	CAN_time_LED:
+ 1199 0004 0000     		.space	2
+ 1200 0006 0000     		.space	2
+ 1201              		.type	mailbox, %object
+ 1202              		.size	mailbox, 4
+ 1203              	mailbox:
+ 1204 0008 00000000 		.space	4
+ 1205              		.type	messageReadFlag, %object
+ 1206              		.size	messageReadFlag, 1
+ 1207              	messageReadFlag:
+ 1208 000c 00       		.space	1
+ 1209              		.text
+ 1210              	.Letext0:
+ 1211              		.file 3 "c:\\program files (x86)\\cypress\\psoc creator\\4.4\\psoc creator\\import\\gnu\\arm\\5.4.
+ 1212              		.file 4 "c:\\program files (x86)\\cypress\\psoc creator\\4.4\\psoc creator\\import\\gnu\\arm\\5.4.
+ 1213              		.file 5 "Generated_Source\\PSoC4/cytypes.h"
+ 1214              		.file 6 "Generated_Source\\PSoC4/CAN.h"
+ 1215              		.file 7 "Generated_Source\\PSoC4/CyLib.h"
+ 1216              		.file 8 "<built-in>"
+ 1217              		.file 9 "Generated_Source\\PSoC4/UART_SPI_UART.h"
+ 1218              		.section	.debug_info,"",%progbits
+ 1219              	.Ldebug_info0:
+ 1220 0000 81090000 		.4byte	0x981
+ 1221 0004 0400     		.2byte	0x4
+ 1222 0006 00000000 		.4byte	.Ldebug_abbrev0
+ 1223 000a 04       		.byte	0x4
+ 1224 000b 01       		.uleb128 0x1
+ 1225 000c CE000000 		.4byte	.LASF89
+ 1226 0010 0C       		.byte	0xc
+ 1227 0011 8C040000 		.4byte	.LASF90
+ 1228 0015 E4020000 		.4byte	.LASF91
+ 1229 0019 18000000 		.4byte	.Ldebug_ranges0+0x18
+ 1230 001d 00000000 		.4byte	0
+ 1231 0021 00000000 		.4byte	.Ldebug_line0
+ 1232 0025 02       		.uleb128 0x2
+ 1233 0026 01       		.byte	0x1
+ 1234 0027 06       		.byte	0x6
+ 1235 0028 A5010000 		.4byte	.LASF0
+ 1236 002c 03       		.uleb128 0x3
+ 1237 002d 03020000 		.4byte	.LASF2
+ 1238 0031 03       		.byte	0x3
+ 1239 0032 1D       		.byte	0x1d
+ 1240 0033 37000000 		.4byte	0x37
+ 1241 0037 02       		.uleb128 0x2
+ 1242 0038 01       		.byte	0x1
+ 1243 0039 08       		.byte	0x8
+ 1244 003a 12020000 		.4byte	.LASF1
+ 1245 003e 03       		.uleb128 0x3
+ 1246 003f 63040000 		.4byte	.LASF3
+ 1247 0043 03       		.byte	0x3
+ 1248 0044 29       		.byte	0x29
+ 1249 0045 49000000 		.4byte	0x49
+ 1250 0049 02       		.uleb128 0x2
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 29
+
+
+ 1251 004a 02       		.byte	0x2
+ 1252 004b 05       		.byte	0x5
+ 1253 004c 33000000 		.4byte	.LASF4
+ 1254 0050 03       		.uleb128 0x3
+ 1255 0051 A2000000 		.4byte	.LASF5
+ 1256 0055 03       		.byte	0x3
+ 1257 0056 2B       		.byte	0x2b
+ 1258 0057 5B000000 		.4byte	0x5b
+ 1259 005b 02       		.uleb128 0x2
+ 1260 005c 02       		.byte	0x2
+ 1261 005d 07       		.byte	0x7
+ 1262 005e 31030000 		.4byte	.LASF6
+ 1263 0062 03       		.uleb128 0x3
+ 1264 0063 59040000 		.4byte	.LASF7
+ 1265 0067 03       		.byte	0x3
+ 1266 0068 3F       		.byte	0x3f
+ 1267 0069 6D000000 		.4byte	0x6d
+ 1268 006d 02       		.uleb128 0x2
+ 1269 006e 04       		.byte	0x4
+ 1270 006f 05       		.byte	0x5
+ 1271 0070 F2010000 		.4byte	.LASF8
+ 1272 0074 03       		.uleb128 0x3
+ 1273 0075 19000000 		.4byte	.LASF9
+ 1274 0079 03       		.byte	0x3
+ 1275 007a 41       		.byte	0x41
+ 1276 007b 7F000000 		.4byte	0x7f
+ 1277 007f 02       		.uleb128 0x2
+ 1278 0080 04       		.byte	0x4
+ 1279 0081 07       		.byte	0x7
+ 1280 0082 EF030000 		.4byte	.LASF10
+ 1281 0086 02       		.uleb128 0x2
+ 1282 0087 08       		.byte	0x8
+ 1283 0088 05       		.byte	0x5
+ 1284 0089 B7010000 		.4byte	.LASF11
+ 1285 008d 02       		.uleb128 0x2
+ 1286 008e 08       		.byte	0x8
+ 1287 008f 07       		.byte	0x7
+ 1288 0090 6B020000 		.4byte	.LASF12
+ 1289 0094 04       		.uleb128 0x4
+ 1290 0095 04       		.byte	0x4
+ 1291 0096 05       		.byte	0x5
+ 1292 0097 696E7400 		.ascii	"int\000"
+ 1293 009b 02       		.uleb128 0x2
+ 1294 009c 04       		.byte	0x4
+ 1295 009d 07       		.byte	0x7
+ 1296 009e 99020000 		.4byte	.LASF13
+ 1297 00a2 03       		.uleb128 0x3
+ 1298 00a3 5C010000 		.4byte	.LASF14
+ 1299 00a7 04       		.byte	0x4
+ 1300 00a8 18       		.byte	0x18
+ 1301 00a9 2C000000 		.4byte	0x2c
+ 1302 00ad 03       		.uleb128 0x3
+ 1303 00ae A6030000 		.4byte	.LASF15
+ 1304 00b2 04       		.byte	0x4
+ 1305 00b3 20       		.byte	0x20
+ 1306 00b4 3E000000 		.4byte	0x3e
+ 1307 00b8 03       		.uleb128 0x3
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 30
+
+
+ 1308 00b9 A6020000 		.4byte	.LASF16
+ 1309 00bd 04       		.byte	0x4
+ 1310 00be 24       		.byte	0x24
+ 1311 00bf 50000000 		.4byte	0x50
+ 1312 00c3 03       		.uleb128 0x3
+ 1313 00c4 98030000 		.4byte	.LASF17
+ 1314 00c8 04       		.byte	0x4
+ 1315 00c9 2C       		.byte	0x2c
+ 1316 00ca 62000000 		.4byte	0x62
+ 1317 00ce 03       		.uleb128 0x3
+ 1318 00cf 82020000 		.4byte	.LASF18
+ 1319 00d3 04       		.byte	0x4
+ 1320 00d4 30       		.byte	0x30
+ 1321 00d5 74000000 		.4byte	0x74
+ 1322 00d9 05       		.uleb128 0x5
+ 1323 00da AE030000 		.4byte	.LASF19
+ 1324 00de 05       		.byte	0x5
+ 1325 00df FC01     		.2byte	0x1fc
+ 1326 00e1 37000000 		.4byte	0x37
+ 1327 00e5 05       		.uleb128 0x5
+ 1328 00e6 D2030000 		.4byte	.LASF20
+ 1329 00ea 05       		.byte	0x5
+ 1330 00eb FD01     		.2byte	0x1fd
+ 1331 00ed 5B000000 		.4byte	0x5b
+ 1332 00f1 05       		.uleb128 0x5
+ 1333 00f2 E3030000 		.4byte	.LASF21
+ 1334 00f6 05       		.byte	0x5
+ 1335 00f7 FE01     		.2byte	0x1fe
+ 1336 00f9 7F000000 		.4byte	0x7f
+ 1337 00fd 02       		.uleb128 0x2
+ 1338 00fe 04       		.byte	0x4
+ 1339 00ff 04       		.byte	0x4
+ 1340 0100 B1010000 		.4byte	.LASF22
+ 1341 0104 02       		.uleb128 0x2
+ 1342 0105 08       		.byte	0x8
+ 1343 0106 04       		.byte	0x4
+ 1344 0107 85040000 		.4byte	.LASF23
+ 1345 010b 05       		.uleb128 0x5
+ 1346 010c 77000000 		.4byte	.LASF24
+ 1347 0110 05       		.byte	0x5
+ 1348 0111 0D02     		.2byte	0x20d
+ 1349 0113 17010000 		.4byte	0x117
+ 1350 0117 02       		.uleb128 0x2
+ 1351 0118 01       		.byte	0x1
+ 1352 0119 08       		.byte	0x8
+ 1353 011a 58030000 		.4byte	.LASF25
+ 1354 011e 05       		.uleb128 0x5
+ 1355 011f EA030000 		.4byte	.LASF26
+ 1356 0123 05       		.byte	0x5
+ 1357 0124 A602     		.2byte	0x2a6
+ 1358 0126 2A010000 		.4byte	0x12a
+ 1359 012a 06       		.uleb128 0x6
+ 1360 012b D9000000 		.4byte	0xd9
+ 1361 012f 06       		.uleb128 0x6
+ 1362 0130 E5000000 		.4byte	0xe5
+ 1363 0134 05       		.uleb128 0x5
+ 1364 0135 2B030000 		.4byte	.LASF27
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 31
+
+
+ 1365 0139 05       		.byte	0x5
+ 1366 013a A802     		.2byte	0x2a8
+ 1367 013c 40010000 		.4byte	0x140
+ 1368 0140 06       		.uleb128 0x6
+ 1369 0141 F1000000 		.4byte	0xf1
+ 1370 0145 02       		.uleb128 0x2
+ 1371 0146 08       		.byte	0x8
+ 1372 0147 04       		.byte	0x4
+ 1373 0148 2B020000 		.4byte	.LASF28
+ 1374 014c 02       		.uleb128 0x2
+ 1375 014d 04       		.byte	0x4
+ 1376 014e 07       		.byte	0x7
+ 1377 014f 4D000000 		.4byte	.LASF29
+ 1378 0153 07       		.uleb128 0x7
+ 1379 0154 04       		.byte	0x4
+ 1380 0155 17010000 		.4byte	0x117
+ 1381 0159 07       		.uleb128 0x7
+ 1382 015a 04       		.byte	0x4
+ 1383 015b 5F010000 		.4byte	0x15f
+ 1384 015f 08       		.uleb128 0x8
+ 1385 0160 17010000 		.4byte	0x117
+ 1386 0164 09       		.uleb128 0x9
+ 1387 0165 08       		.byte	0x8
+ 1388 0166 06       		.byte	0x6
+ 1389 0167 6F       		.byte	0x6f
+ 1390 0168 79010000 		.4byte	0x179
+ 1391 016c 0A       		.uleb128 0xa
+ 1392 016d 47040000 		.4byte	.LASF31
+ 1393 0171 06       		.byte	0x6
+ 1394 0172 71       		.byte	0x71
+ 1395 0173 79010000 		.4byte	0x179
+ 1396 0177 00       		.byte	0
+ 1397 0178 00       		.byte	0
+ 1398 0179 0B       		.uleb128 0xb
+ 1399 017a D9000000 		.4byte	0xd9
+ 1400 017e 89010000 		.4byte	0x189
+ 1401 0182 0C       		.uleb128 0xc
+ 1402 0183 4C010000 		.4byte	0x14c
+ 1403 0187 07       		.byte	0x7
+ 1404 0188 00       		.byte	0
+ 1405 0189 03       		.uleb128 0x3
+ 1406 018a AF020000 		.4byte	.LASF30
+ 1407 018e 06       		.byte	0x6
+ 1408 018f 72       		.byte	0x72
+ 1409 0190 64010000 		.4byte	0x164
+ 1410 0194 09       		.uleb128 0x9
+ 1411 0195 08       		.byte	0x8
+ 1412 0196 06       		.byte	0x6
+ 1413 0197 75       		.byte	0x75
+ 1414 0198 A9010000 		.4byte	0x1a9
+ 1415 019c 0A       		.uleb128 0xa
+ 1416 019d 47040000 		.4byte	.LASF31
+ 1417 01a1 06       		.byte	0x6
+ 1418 01a2 77       		.byte	0x77
+ 1419 01a3 B9010000 		.4byte	0x1b9
+ 1420 01a7 00       		.byte	0
+ 1421 01a8 00       		.byte	0
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 32
+
+
+ 1422 01a9 0B       		.uleb128 0xb
+ 1423 01aa 1E010000 		.4byte	0x11e
+ 1424 01ae B9010000 		.4byte	0x1b9
+ 1425 01b2 0C       		.uleb128 0xc
+ 1426 01b3 4C010000 		.4byte	0x14c
+ 1427 01b7 07       		.byte	0x7
+ 1428 01b8 00       		.byte	0
+ 1429 01b9 06       		.uleb128 0x6
+ 1430 01ba A9010000 		.4byte	0x1a9
+ 1431 01be 03       		.uleb128 0x3
+ 1432 01bf 24000000 		.4byte	.LASF32
+ 1433 01c3 06       		.byte	0x6
+ 1434 01c4 78       		.byte	0x78
+ 1435 01c5 94010000 		.4byte	0x194
+ 1436 01c9 09       		.uleb128 0x9
+ 1437 01ca 04       		.byte	0x4
+ 1438 01cb 06       		.byte	0x6
+ 1439 01cc 7B       		.byte	0x7b
+ 1440 01cd DE010000 		.4byte	0x1de
+ 1441 01d1 0A       		.uleb128 0xa
+ 1442 01d2 47040000 		.4byte	.LASF31
+ 1443 01d6 06       		.byte	0x6
+ 1444 01d7 7D       		.byte	0x7d
+ 1445 01d8 EE010000 		.4byte	0x1ee
+ 1446 01dc 00       		.byte	0
+ 1447 01dd 00       		.byte	0
+ 1448 01de 0B       		.uleb128 0xb
+ 1449 01df 1E010000 		.4byte	0x11e
+ 1450 01e3 EE010000 		.4byte	0x1ee
+ 1451 01e7 0C       		.uleb128 0xc
+ 1452 01e8 4C010000 		.4byte	0x14c
+ 1453 01ec 03       		.byte	0x3
+ 1454 01ed 00       		.byte	0
+ 1455 01ee 06       		.uleb128 0x6
+ 1456 01ef DE010000 		.4byte	0x1de
+ 1457 01f3 03       		.uleb128 0x3
+ 1458 01f4 C5010000 		.4byte	.LASF33
+ 1459 01f8 06       		.byte	0x6
+ 1460 01f9 7E       		.byte	0x7e
+ 1461 01fa C9010000 		.4byte	0x1c9
+ 1462 01fe 09       		.uleb128 0x9
+ 1463 01ff 10       		.byte	0x10
+ 1464 0200 06       		.byte	0x6
+ 1465 0201 81       		.byte	0x81
+ 1466 0202 5A020000 		.4byte	0x25a
+ 1467 0206 0D       		.uleb128 0xd
+ 1468 0207 696400   		.ascii	"id\000"
+ 1469 020a 06       		.byte	0x6
+ 1470 020b 83       		.byte	0x83
+ 1471 020c F1000000 		.4byte	0xf1
+ 1472 0210 00       		.byte	0
+ 1473 0211 0D       		.uleb128 0xd
+ 1474 0212 72747200 		.ascii	"rtr\000"
+ 1475 0216 06       		.byte	0x6
+ 1476 0217 84       		.byte	0x84
+ 1477 0218 D9000000 		.4byte	0xd9
+ 1478 021c 04       		.byte	0x4
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 33
+
+
+ 1479 021d 0D       		.uleb128 0xd
+ 1480 021e 69646500 		.ascii	"ide\000"
+ 1481 0222 06       		.byte	0x6
+ 1482 0223 85       		.byte	0x85
+ 1483 0224 D9000000 		.4byte	0xd9
+ 1484 0228 05       		.byte	0x5
+ 1485 0229 0D       		.uleb128 0xd
+ 1486 022a 646C6300 		.ascii	"dlc\000"
+ 1487 022e 06       		.byte	0x6
+ 1488 022f 86       		.byte	0x86
+ 1489 0230 D9000000 		.4byte	0xd9
+ 1490 0234 06       		.byte	0x6
+ 1491 0235 0D       		.uleb128 0xd
+ 1492 0236 69727100 		.ascii	"irq\000"
+ 1493 023a 06       		.byte	0x6
+ 1494 023b 87       		.byte	0x87
+ 1495 023c D9000000 		.4byte	0xd9
+ 1496 0240 07       		.byte	0x7
+ 1497 0241 0D       		.uleb128 0xd
+ 1498 0242 73737400 		.ascii	"sst\000"
+ 1499 0246 06       		.byte	0x6
+ 1500 0247 89       		.byte	0x89
+ 1501 0248 D9000000 		.4byte	0xd9
+ 1502 024c 08       		.byte	0x8
+ 1503 024d 0D       		.uleb128 0xd
+ 1504 024e 6D736700 		.ascii	"msg\000"
+ 1505 0252 06       		.byte	0x6
+ 1506 0253 8B       		.byte	0x8b
+ 1507 0254 5A020000 		.4byte	0x25a
+ 1508 0258 0C       		.byte	0xc
+ 1509 0259 00       		.byte	0
+ 1510 025a 07       		.uleb128 0x7
+ 1511 025b 04       		.byte	0x4
+ 1512 025c 89010000 		.4byte	0x189
+ 1513 0260 03       		.uleb128 0x3
+ 1514 0261 01040000 		.4byte	.LASF34
+ 1515 0265 06       		.byte	0x6
+ 1516 0266 8C       		.byte	0x8c
+ 1517 0267 FE010000 		.4byte	0x1fe
+ 1518 026b 09       		.uleb128 0x9
+ 1519 026c 10       		.byte	0x10
+ 1520 026d 06       		.byte	0x6
+ 1521 026e 8F       		.byte	0x8f
+ 1522 026f A4020000 		.4byte	0x2a4
+ 1523 0273 0A       		.uleb128 0xa
+ 1524 0274 08000000 		.4byte	.LASF35
+ 1525 0278 06       		.byte	0x6
+ 1526 0279 91       		.byte	0x91
+ 1527 027a D9000000 		.4byte	0xd9
+ 1528 027e 00       		.byte	0
+ 1529 027f 0A       		.uleb128 0xa
+ 1530 0280 A0030000 		.4byte	.LASF36
+ 1531 0284 06       		.byte	0x6
+ 1532 0285 92       		.byte	0x92
+ 1533 0286 F1000000 		.4byte	0xf1
+ 1534 028a 04       		.byte	0x4
+ 1535 028b 0A       		.uleb128 0xa
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 34
+
+
+ 1536 028c C3040000 		.4byte	.LASF37
+ 1537 0290 06       		.byte	0x6
+ 1538 0291 93       		.byte	0x93
+ 1539 0292 F1000000 		.4byte	0xf1
+ 1540 0296 08       		.byte	0x8
+ 1541 0297 0A       		.uleb128 0xa
+ 1542 0298 9F010000 		.4byte	.LASF38
+ 1543 029c 06       		.byte	0x6
+ 1544 029d 94       		.byte	0x94
+ 1545 029e F1000000 		.4byte	0xf1
+ 1546 02a2 0C       		.byte	0xc
+ 1547 02a3 00       		.byte	0
+ 1548 02a4 03       		.uleb128 0x3
+ 1549 02a5 DB040000 		.4byte	.LASF39
+ 1550 02a9 06       		.byte	0x6
+ 1551 02aa 95       		.byte	0x95
+ 1552 02ab 6B020000 		.4byte	0x26b
+ 1553 02af 09       		.uleb128 0x9
+ 1554 02b0 20       		.byte	0x20
+ 1555 02b1 06       		.byte	0x6
+ 1556 02b2 A0       		.byte	0xa0
+ 1557 02b3 0C030000 		.4byte	0x30c
+ 1558 02b7 0A       		.uleb128 0xa
+ 1559 02b8 A0030000 		.4byte	.LASF36
+ 1560 02bc 06       		.byte	0x6
+ 1561 02bd A2       		.byte	0xa2
+ 1562 02be F3010000 		.4byte	0x1f3
+ 1563 02c2 00       		.byte	0
+ 1564 02c3 0A       		.uleb128 0xa
+ 1565 02c4 89010000 		.4byte	.LASF40
+ 1566 02c8 06       		.byte	0x6
+ 1567 02c9 A3       		.byte	0xa3
+ 1568 02ca F3010000 		.4byte	0x1f3
+ 1569 02ce 04       		.byte	0x4
+ 1570 02cf 0A       		.uleb128 0xa
+ 1571 02d0 9B000000 		.4byte	.LASF41
+ 1572 02d4 06       		.byte	0x6
+ 1573 02d5 A4       		.byte	0xa4
+ 1574 02d6 BE010000 		.4byte	0x1be
+ 1575 02da 08       		.byte	0x8
+ 1576 02db 0A       		.uleb128 0xa
+ 1577 02dc C3040000 		.4byte	.LASF37
+ 1578 02e0 06       		.byte	0x6
+ 1579 02e1 A5       		.byte	0xa5
+ 1580 02e2 F3010000 		.4byte	0x1f3
+ 1581 02e6 10       		.byte	0x10
+ 1582 02e7 0A       		.uleb128 0xa
+ 1583 02e8 9F010000 		.4byte	.LASF38
+ 1584 02ec 06       		.byte	0x6
+ 1585 02ed A6       		.byte	0xa6
+ 1586 02ee F3010000 		.4byte	0x1f3
+ 1587 02f2 14       		.byte	0x14
+ 1588 02f3 0A       		.uleb128 0xa
+ 1589 02f4 37020000 		.4byte	.LASF42
+ 1590 02f8 06       		.byte	0x6
+ 1591 02f9 A7       		.byte	0xa7
+ 1592 02fa F3010000 		.4byte	0x1f3
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 35
+
+
+ 1593 02fe 18       		.byte	0x18
+ 1594 02ff 0A       		.uleb128 0xa
+ 1595 0300 51030000 		.4byte	.LASF43
+ 1596 0304 06       		.byte	0x6
+ 1597 0305 A8       		.byte	0xa8
+ 1598 0306 F3010000 		.4byte	0x1f3
+ 1599 030a 1C       		.byte	0x1c
+ 1600 030b 00       		.byte	0
+ 1601 030c 03       		.uleb128 0x3
+ 1602 030d 5D030000 		.4byte	.LASF44
+ 1603 0311 06       		.byte	0x6
+ 1604 0312 A9       		.byte	0xa9
+ 1605 0313 AF020000 		.4byte	0x2af
+ 1606 0317 09       		.uleb128 0x9
+ 1607 0318 0C       		.byte	0xc
+ 1608 0319 01       		.byte	0x1
+ 1609 031a 0F       		.byte	0xf
+ 1610 031b 43030000 		.4byte	0x343
+ 1611 031f 0D       		.uleb128 0xd
+ 1612 0320 696400   		.ascii	"id\000"
+ 1613 0323 01       		.byte	0x1
+ 1614 0324 11       		.byte	0x11
+ 1615 0325 B8000000 		.4byte	0xb8
+ 1616 0329 00       		.byte	0
+ 1617 032a 0D       		.uleb128 0xd
+ 1618 032b 646C6300 		.ascii	"dlc\000"
+ 1619 032f 01       		.byte	0x1
+ 1620 0330 12       		.byte	0x12
+ 1621 0331 A2000000 		.4byte	0xa2
+ 1622 0335 02       		.byte	0x2
+ 1623 0336 0A       		.uleb128 0xa
+ 1624 0337 CD030000 		.4byte	.LASF45
+ 1625 033b 01       		.byte	0x1
+ 1626 033c 13       		.byte	0x13
+ 1627 033d 43030000 		.4byte	0x343
+ 1628 0341 03       		.byte	0x3
+ 1629 0342 00       		.byte	0
+ 1630 0343 0B       		.uleb128 0xb
+ 1631 0344 A2000000 		.4byte	0xa2
+ 1632 0348 53030000 		.4byte	0x353
+ 1633 034c 0C       		.uleb128 0xc
+ 1634 034d 4C010000 		.4byte	0x14c
+ 1635 0351 07       		.byte	0x7
+ 1636 0352 00       		.byte	0
+ 1637 0353 03       		.uleb128 0x3
+ 1638 0354 D0010000 		.4byte	.LASF46
+ 1639 0358 01       		.byte	0x1
+ 1640 0359 14       		.byte	0x14
+ 1641 035a 17030000 		.4byte	0x317
+ 1642 035e 0E       		.uleb128 0xe
+ 1643 035f 8B020000 		.4byte	.LASF53
+ 1644 0363 01       		.byte	0x1
+ 1645 0364 33       		.byte	0x33
+ 1646 0365 94000000 		.4byte	0x94
+ 1647 0369 00000000 		.4byte	.LFB34
+ 1648 036d 3E000000 		.4byte	.LFE34-.LFB34
+ 1649 0371 01       		.uleb128 0x1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 36
+
+
+ 1650 0372 9C       		.byte	0x9c
+ 1651 0373 D5030000 		.4byte	0x3d5
+ 1652 0377 0F       		.uleb128 0xf
+ 1653 0378 A9040000 		.4byte	.LASF55
+ 1654 037c 01       		.byte	0x1
+ 1655 037d 33       		.byte	0x33
+ 1656 037e D5030000 		.4byte	0x3d5
+ 1657 0382 00000000 		.4byte	.LLST0
+ 1658 0386 10       		.uleb128 0x10
+ 1659 0387 7D000000 		.4byte	.LASF47
+ 1660 038b 01       		.byte	0x1
+ 1661 038c 36       		.byte	0x36
+ 1662 038d 60020000 		.4byte	0x260
+ 1663 0391 02       		.uleb128 0x2
+ 1664 0392 91       		.byte	0x91
+ 1665 0393 68       		.sleb128 -24
+ 1666 0394 10       		.uleb128 0x10
+ 1667 0395 C4030000 		.4byte	.LASF48
+ 1668 0399 01       		.byte	0x1
+ 1669 039a 37       		.byte	0x37
+ 1670 039b 89010000 		.4byte	0x189
+ 1671 039f 02       		.uleb128 0x2
+ 1672 03a0 91       		.byte	0x91
+ 1673 03a1 60       		.sleb128 -32
+ 1674 03a2 11       		.uleb128 0x11
+ 1675 03a3 28000000 		.4byte	.LVL2
+ 1676 03a7 2B090000 		.4byte	0x92b
+ 1677 03ab C4030000 		.4byte	0x3c4
+ 1678 03af 12       		.uleb128 0x12
+ 1679 03b0 01       		.uleb128 0x1
+ 1680 03b1 50       		.byte	0x50
+ 1681 03b2 02       		.uleb128 0x2
+ 1682 03b3 7D       		.byte	0x7d
+ 1683 03b4 00       		.sleb128 0
+ 1684 03b5 12       		.uleb128 0x12
+ 1685 03b6 01       		.uleb128 0x1
+ 1686 03b7 51       		.byte	0x51
+ 1687 03b8 05       		.uleb128 0x5
+ 1688 03b9 F3       		.byte	0xf3
+ 1689 03ba 01       		.uleb128 0x1
+ 1690 03bb 50       		.byte	0x50
+ 1691 03bc 23       		.byte	0x23
+ 1692 03bd 03       		.uleb128 0x3
+ 1693 03be 12       		.uleb128 0x12
+ 1694 03bf 01       		.uleb128 0x1
+ 1695 03c0 52       		.byte	0x52
+ 1696 03c1 01       		.uleb128 0x1
+ 1697 03c2 38       		.byte	0x38
+ 1698 03c3 00       		.byte	0
+ 1699 03c4 13       		.uleb128 0x13
+ 1700 03c5 2E000000 		.4byte	.LVL3
+ 1701 03c9 34090000 		.4byte	0x934
+ 1702 03cd 12       		.uleb128 0x12
+ 1703 03ce 01       		.uleb128 0x1
+ 1704 03cf 50       		.byte	0x50
+ 1705 03d0 02       		.uleb128 0x2
+ 1706 03d1 74       		.byte	0x74
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 37
+
+
+ 1707 03d2 00       		.sleb128 0
+ 1708 03d3 00       		.byte	0
+ 1709 03d4 00       		.byte	0
+ 1710 03d5 07       		.uleb128 0x7
+ 1711 03d6 04       		.byte	0x4
+ 1712 03d7 53030000 		.4byte	0x353
+ 1713 03db 14       		.uleb128 0x14
+ 1714 03dc 89000000 		.4byte	.LASF92
+ 1715 03e0 01       		.byte	0x1
+ 1716 03e1 49       		.byte	0x49
+ 1717 03e2 00000000 		.4byte	.LFB35
+ 1718 03e6 64000000 		.4byte	.LFE35-.LFB35
+ 1719 03ea 01       		.uleb128 0x1
+ 1720 03eb 9C       		.byte	0x9c
+ 1721 03ec 43040000 		.4byte	0x443
+ 1722 03f0 15       		.uleb128 0x15
+ 1723 03f1 06000000 		.4byte	.LVL6
+ 1724 03f5 40090000 		.4byte	0x940
+ 1725 03f9 11       		.uleb128 0x11
+ 1726 03fa 1C000000 		.4byte	.LVL7
+ 1727 03fe 4B090000 		.4byte	0x94b
+ 1728 0402 0D040000 		.4byte	0x40d
+ 1729 0406 12       		.uleb128 0x12
+ 1730 0407 01       		.uleb128 0x1
+ 1731 0408 50       		.byte	0x50
+ 1732 0409 02       		.uleb128 0x2
+ 1733 040a 74       		.byte	0x74
+ 1734 040b 00       		.sleb128 0
+ 1735 040c 00       		.byte	0
+ 1736 040d 11       		.uleb128 0x11
+ 1737 040e 30000000 		.4byte	.LVL8
+ 1738 0412 4B090000 		.4byte	0x94b
+ 1739 0416 21040000 		.4byte	0x421
+ 1740 041a 12       		.uleb128 0x12
+ 1741 041b 01       		.uleb128 0x1
+ 1742 041c 50       		.byte	0x50
+ 1743 041d 02       		.uleb128 0x2
+ 1744 041e 74       		.byte	0x74
+ 1745 041f 00       		.sleb128 0
+ 1746 0420 00       		.byte	0
+ 1747 0421 15       		.uleb128 0x15
+ 1748 0422 40000000 		.4byte	.LVL9
+ 1749 0426 57090000 		.4byte	0x957
+ 1750 042a 13       		.uleb128 0x13
+ 1751 042b 48000000 		.4byte	.LVL10
+ 1752 042f 62090000 		.4byte	0x962
+ 1753 0433 12       		.uleb128 0x12
+ 1754 0434 01       		.uleb128 0x1
+ 1755 0435 50       		.byte	0x50
+ 1756 0436 01       		.uleb128 0x1
+ 1757 0437 4C       		.byte	0x4c
+ 1758 0438 12       		.uleb128 0x12
+ 1759 0439 01       		.uleb128 0x1
+ 1760 043a 51       		.byte	0x51
+ 1761 043b 05       		.uleb128 0x5
+ 1762 043c 03       		.byte	0x3
+ 1763 043d 00000000 		.4byte	CAN_FLAG_ISR
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 38
+
+
+ 1764 0441 00       		.byte	0
+ 1765 0442 00       		.byte	0
+ 1766 0443 16       		.uleb128 0x16
+ 1767 0444 7C040000 		.4byte	.LASF93
+ 1768 0448 01       		.byte	0x1
+ 1769 0449 A1       		.byte	0xa1
+ 1770 044a A2000000 		.4byte	0xa2
+ 1771 044e 00000000 		.4byte	.LFB38
+ 1772 0452 48000000 		.4byte	.LFE38-.LFB38
+ 1773 0456 01       		.uleb128 0x1
+ 1774 0457 9C       		.byte	0x9c
+ 1775 0458 17       		.uleb128 0x17
+ 1776 0459 44030000 		.4byte	.LASF94
+ 1777 045d 01       		.byte	0x1
+ 1778 045e B0       		.byte	0xb0
+ 1779 045f 00000000 		.4byte	.LFB39
+ 1780 0463 50000000 		.4byte	.LFE39-.LFB39
+ 1781 0467 01       		.uleb128 0x1
+ 1782 0468 9C       		.byte	0x9c
+ 1783 0469 18       		.uleb128 0x18
+ 1784 046a B6040000 		.4byte	.LASF51
+ 1785 046e 01       		.byte	0x1
+ 1786 046f 6A       		.byte	0x6a
+ 1787 0470 00000000 		.4byte	.LFB36
+ 1788 0474 34010000 		.4byte	.LFE36-.LFB36
+ 1789 0478 01       		.uleb128 0x1
+ 1790 0479 9C       		.byte	0x9c
+ 1791 047a A6040000 		.4byte	0x4a6
+ 1792 047e 19       		.uleb128 0x19
+ 1793 047f 91000000 		.4byte	.LASF49
+ 1794 0483 01       		.byte	0x1
+ 1795 0484 6F       		.byte	0x6f
+ 1796 0485 CE000000 		.4byte	0xce
+ 1797 0489 47000000 		.4byte	.LLST1
+ 1798 048d 19       		.uleb128 0x19
+ 1799 048e FB010000 		.4byte	.LASF50
+ 1800 0492 01       		.byte	0x1
+ 1801 0493 70       		.byte	0x70
+ 1802 0494 A2000000 		.4byte	0xa2
+ 1803 0498 65000000 		.4byte	.LLST2
+ 1804 049c 15       		.uleb128 0x15
+ 1805 049d 14010000 		.4byte	.LVL17
+ 1806 04a1 58040000 		.4byte	0x458
+ 1807 04a5 00       		.byte	0
+ 1808 04a6 18       		.uleb128 0x18
+ 1809 04a7 B4030000 		.4byte	.LASF52
+ 1810 04ab 01       		.byte	0x1
+ 1811 04ac BE       		.byte	0xbe
+ 1812 04ad 00000000 		.4byte	.LFB40
+ 1813 04b1 28000000 		.4byte	.LFE40-.LFB40
+ 1814 04b5 01       		.uleb128 0x1
+ 1815 04b6 9C       		.byte	0x9c
+ 1816 04b7 C5040000 		.4byte	0x4c5
+ 1817 04bb 15       		.uleb128 0x15
+ 1818 04bc 06000000 		.4byte	.LVL18
+ 1819 04c0 43040000 		.4byte	0x443
+ 1820 04c4 00       		.byte	0
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 39
+
+
+ 1821 04c5 0E       		.uleb128 0xe
+ 1822 04c6 DA010000 		.4byte	.LASF54
+ 1823 04ca 01       		.byte	0x1
+ 1824 04cb 8F       		.byte	0x8f
+ 1825 04cc 94000000 		.4byte	0x94
+ 1826 04d0 00000000 		.4byte	.LFB37
+ 1827 04d4 4C000000 		.4byte	.LFE37-.LFB37
+ 1828 04d8 01       		.uleb128 0x1
+ 1829 04d9 9C       		.byte	0x9c
+ 1830 04da 27050000 		.4byte	0x527
+ 1831 04de 0F       		.uleb128 0xf
+ 1832 04df 56000000 		.4byte	.LASF56
+ 1833 04e3 01       		.byte	0x1
+ 1834 04e4 8F       		.byte	0x8f
+ 1835 04e5 D5030000 		.4byte	0x3d5
+ 1836 04e9 78000000 		.4byte	.LLST3
+ 1837 04ed 10       		.uleb128 0x10
+ 1838 04ee 42040000 		.4byte	.LASF57
+ 1839 04f2 01       		.byte	0x1
+ 1840 04f3 94       		.byte	0x94
+ 1841 04f4 27050000 		.4byte	0x527
+ 1842 04f8 02       		.uleb128 0x2
+ 1843 04f9 91       		.byte	0x91
+ 1844 04fa 77       		.sleb128 -9
+ 1845 04fb 15       		.uleb128 0x15
+ 1846 04fc 0C000000 		.4byte	.LVL20
+ 1847 0500 43040000 		.4byte	0x443
+ 1848 0504 11       		.uleb128 0x11
+ 1849 0505 30000000 		.4byte	.LVL21
+ 1850 0509 2B090000 		.4byte	0x92b
+ 1851 050d 1D050000 		.4byte	0x51d
+ 1852 0511 12       		.uleb128 0x12
+ 1853 0512 01       		.uleb128 0x1
+ 1854 0513 50       		.byte	0x50
+ 1855 0514 02       		.uleb128 0x2
+ 1856 0515 74       		.byte	0x74
+ 1857 0516 00       		.sleb128 0
+ 1858 0517 12       		.uleb128 0x12
+ 1859 0518 01       		.uleb128 0x1
+ 1860 0519 52       		.byte	0x52
+ 1861 051a 01       		.uleb128 0x1
+ 1862 051b 3C       		.byte	0x3c
+ 1863 051c 00       		.byte	0
+ 1864 051d 15       		.uleb128 0x15
+ 1865 051e 34000000 		.4byte	.LVL22
+ 1866 0522 A6040000 		.4byte	0x4a6
+ 1867 0526 00       		.byte	0
+ 1868 0527 06       		.uleb128 0x6
+ 1869 0528 A2000000 		.4byte	0xa2
+ 1870 052c 1A       		.uleb128 0x1a
+ 1871 052d 73327800 		.ascii	"s2x\000"
+ 1872 0531 02       		.byte	0x2
+ 1873 0532 14       		.byte	0x14
+ 1874 0533 D9000000 		.4byte	0xd9
+ 1875 0537 00000000 		.4byte	.LFB41
+ 1876 053b 6C000000 		.4byte	.LFE41-.LFB41
+ 1877 053f 01       		.uleb128 0x1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 40
+
+
+ 1878 0540 9C       		.byte	0x9c
+ 1879 0541 53050000 		.4byte	0x553
+ 1880 0545 1B       		.uleb128 0x1b
+ 1881 0546 6300     		.ascii	"c\000"
+ 1882 0548 02       		.byte	0x2
+ 1883 0549 14       		.byte	0x14
+ 1884 054a 0B010000 		.4byte	0x10b
+ 1885 054e BA000000 		.4byte	.LLST4
+ 1886 0552 00       		.byte	0
+ 1887 0553 0E       		.uleb128 0xe
+ 1888 0554 95010000 		.4byte	.LASF58
+ 1889 0558 02       		.byte	0x2
+ 1890 0559 24       		.byte	0x24
+ 1891 055a 53030000 		.4byte	0x353
+ 1892 055e 00000000 		.4byte	.LFB42
+ 1893 0562 88000000 		.4byte	.LFE42-.LFB42
+ 1894 0566 01       		.uleb128 0x1
+ 1895 0567 9C       		.byte	0x9c
+ 1896 0568 04060000 		.4byte	0x604
+ 1897 056c 1B       		.uleb128 0x1b
+ 1898 056d 7000     		.ascii	"p\000"
+ 1899 056f 02       		.byte	0x2
+ 1900 0570 24       		.byte	0x24
+ 1901 0571 D5030000 		.4byte	0x3d5
+ 1902 0575 DB000000 		.4byte	.LLST5
+ 1903 0579 0F       		.uleb128 0xf
+ 1904 057a 0D020000 		.4byte	.LASF59
+ 1905 057e 02       		.byte	0x2
+ 1906 057f 24       		.byte	0x24
+ 1907 0580 04060000 		.4byte	0x604
+ 1908 0584 07010000 		.4byte	.LLST6
+ 1909 0588 1C       		.uleb128 0x1c
+ 1910 0589 707200   		.ascii	"pr\000"
+ 1911 058c 02       		.byte	0x2
+ 1912 058d 25       		.byte	0x25
+ 1913 058e E5000000 		.4byte	0xe5
+ 1914 0592 33010000 		.4byte	.LLST7
+ 1915 0596 1C       		.uleb128 0x1c
+ 1916 0597 646700   		.ascii	"dg\000"
+ 1917 059a 02       		.byte	0x2
+ 1918 059b 26       		.byte	0x26
+ 1919 059c E5000000 		.4byte	0xe5
+ 1920 05a0 46010000 		.4byte	.LLST8
+ 1921 05a4 1C       		.uleb128 0x1c
+ 1922 05a5 736E00   		.ascii	"sn\000"
+ 1923 05a8 02       		.byte	0x2
+ 1924 05a9 27       		.byte	0x27
+ 1925 05aa E5000000 		.4byte	0xe5
+ 1926 05ae 59010000 		.4byte	.LLST9
+ 1927 05b2 1D       		.uleb128 0x1d
+ 1928 05b3 44000000 		.4byte	.LBB2
+ 1929 05b7 38000000 		.4byte	.LBE2-.LBB2
+ 1930 05bb DF050000 		.4byte	0x5df
+ 1931 05bf 1C       		.uleb128 0x1c
+ 1932 05c0 6900     		.ascii	"i\000"
+ 1933 05c2 02       		.byte	0x2
+ 1934 05c3 2B       		.byte	0x2b
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 41
+
+
+ 1935 05c4 D9000000 		.4byte	0xd9
+ 1936 05c8 6C010000 		.4byte	.LLST10
+ 1937 05cc 15       		.uleb128 0x15
+ 1938 05cd 5A000000 		.4byte	.LVL40
+ 1939 05d1 2C050000 		.4byte	0x52c
+ 1940 05d5 15       		.uleb128 0x15
+ 1941 05d6 66000000 		.4byte	.LVL41
+ 1942 05da 2C050000 		.4byte	0x52c
+ 1943 05de 00       		.byte	0
+ 1944 05df 15       		.uleb128 0x15
+ 1945 05e0 16000000 		.4byte	.LVL30
+ 1946 05e4 2C050000 		.4byte	0x52c
+ 1947 05e8 15       		.uleb128 0x15
+ 1948 05e9 20000000 		.4byte	.LVL32
+ 1949 05ed 2C050000 		.4byte	0x52c
+ 1950 05f1 15       		.uleb128 0x15
+ 1951 05f2 2A000000 		.4byte	.LVL34
+ 1952 05f6 2C050000 		.4byte	0x52c
+ 1953 05fa 15       		.uleb128 0x15
+ 1954 05fb 32000000 		.4byte	.LVL35
+ 1955 05ff 2C050000 		.4byte	0x52c
+ 1956 0603 00       		.byte	0
+ 1957 0604 07       		.uleb128 0x7
+ 1958 0605 04       		.byte	0x4
+ 1959 0606 0B010000 		.4byte	0x10b
+ 1960 060a 0E       		.uleb128 0xe
+ 1961 060b BE000000 		.4byte	.LASF60
+ 1962 060f 02       		.byte	0x2
+ 1963 0610 31       		.byte	0x31
+ 1964 0611 CE000000 		.4byte	0xce
+ 1965 0615 00000000 		.4byte	.LFB43
+ 1966 0619 2C000000 		.4byte	.LFE43-.LFB43
+ 1967 061d 01       		.uleb128 0x1
+ 1968 061e 9C       		.byte	0x9c
+ 1969 061f 8A060000 		.4byte	0x68a
+ 1970 0623 0F       		.uleb128 0xf
+ 1971 0624 18040000 		.4byte	.LASF61
+ 1972 0628 02       		.byte	0x2
+ 1973 0629 31       		.byte	0x31
+ 1974 062a 94000000 		.4byte	0x94
+ 1975 062e 96010000 		.4byte	.LLST11
+ 1976 0632 1E       		.uleb128 0x1e
+ 1977 0633 D9030000 		.4byte	.LASF62
+ 1978 0637 02       		.byte	0x2
+ 1979 0638 31       		.byte	0x31
+ 1980 0639 94000000 		.4byte	0x94
+ 1981 063d 01       		.uleb128 0x1
+ 1982 063e 51       		.byte	0x51
+ 1983 063f 1E       		.uleb128 0x1e
+ 1984 0640 CD030000 		.4byte	.LASF45
+ 1985 0644 02       		.byte	0x2
+ 1986 0645 31       		.byte	0x31
+ 1987 0646 8A060000 		.4byte	0x68a
+ 1988 064a 01       		.uleb128 0x1
+ 1989 064b 52       		.byte	0x52
+ 1990 064c 19       		.uleb128 0x19
+ 1991 064d 12000000 		.4byte	.LASF63
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 42
+
+
+ 1992 0651 02       		.byte	0x2
+ 1993 0652 32       		.byte	0x32
+ 1994 0653 CE000000 		.4byte	0xce
+ 1995 0657 DB010000 		.4byte	.LLST12
+ 1996 065b 1F       		.uleb128 0x1f
+ 1997 065c 00000000 		.4byte	.Ldebug_ranges0+0
+ 1998 0660 72060000 		.4byte	0x672
+ 1999 0664 1C       		.uleb128 0x1c
+ 2000 0665 6900     		.ascii	"i\000"
+ 2001 0667 02       		.byte	0x2
+ 2002 0668 34       		.byte	0x34
+ 2003 0669 94000000 		.4byte	0x94
+ 2004 066d 27020000 		.4byte	.LLST13
+ 2005 0671 00       		.byte	0
+ 2006 0672 20       		.uleb128 0x20
+ 2007 0673 1E000000 		.4byte	.LBB5
+ 2008 0677 0C000000 		.4byte	.LBE5-.LBB5
+ 2009 067b 1C       		.uleb128 0x1c
+ 2010 067c 6900     		.ascii	"i\000"
+ 2011 067e 02       		.byte	0x2
+ 2012 067f 37       		.byte	0x37
+ 2013 0680 94000000 		.4byte	0x94
+ 2014 0684 45020000 		.4byte	.LLST14
+ 2015 0688 00       		.byte	0
+ 2016 0689 00       		.byte	0
+ 2017 068a 07       		.uleb128 0x7
+ 2018 068b 04       		.byte	0x4
+ 2019 068c A2000000 		.4byte	0xa2
+ 2020 0690 18       		.uleb128 0x18
+ 2021 0691 22040000 		.4byte	.LASF64
+ 2022 0695 02       		.byte	0x2
+ 2023 0696 3C       		.byte	0x3c
+ 2024 0697 00000000 		.4byte	.LFB44
+ 2025 069b A0000000 		.4byte	.LFE44-.LFB44
+ 2026 069f 01       		.uleb128 0x1
+ 2027 06a0 9C       		.byte	0x9c
+ 2028 06a1 F1070000 		.4byte	0x7f1
+ 2029 06a5 0F       		.uleb128 0xf
+ 2030 06a6 8E010000 		.4byte	.LASF65
+ 2031 06aa 02       		.byte	0x2
+ 2032 06ab 3C       		.byte	0x3c
+ 2033 06ac D5030000 		.4byte	0x3d5
+ 2034 06b0 58020000 		.4byte	.LLST15
+ 2035 06b4 10       		.uleb128 0x10
+ 2036 06b5 54040000 		.4byte	.LASF66
+ 2037 06b9 02       		.byte	0x2
+ 2038 06ba 3D       		.byte	0x3d
+ 2039 06bb F1070000 		.4byte	0x7f1
+ 2040 06bf 03       		.uleb128 0x3
+ 2041 06c0 91       		.byte	0x91
+ 2042 06c1 8C7F     		.sleb128 -116
+ 2043 06c3 19       		.uleb128 0x19
+ 2044 06c4 54020000 		.4byte	.LASF67
+ 2045 06c8 02       		.byte	0x2
+ 2046 06c9 3E       		.byte	0x3e
+ 2047 06ca A2000000 		.4byte	0xa2
+ 2048 06ce 84020000 		.4byte	.LLST16
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 43
+
+
+ 2049 06d2 21       		.uleb128 0x21
+ 2050 06d3 4C020000 		.4byte	.LASF87
+ 2051 06d7 08       		.byte	0x8
+ 2052 06d8 00       		.byte	0
+ 2053 06d9 94000000 		.4byte	0x94
+ 2054 06dd ED060000 		.4byte	0x6ed
+ 2055 06e1 22       		.uleb128 0x22
+ 2056 06e2 53010000 		.4byte	0x153
+ 2057 06e6 22       		.uleb128 0x22
+ 2058 06e7 59010000 		.4byte	0x159
+ 2059 06eb 23       		.uleb128 0x23
+ 2060 06ec 00       		.byte	0
+ 2061 06ed 11       		.uleb128 0x11
+ 2062 06ee 12000000 		.4byte	.LVL64
+ 2063 06f2 6D090000 		.4byte	0x96d
+ 2064 06f6 11070000 		.4byte	0x711
+ 2065 06fa 12       		.uleb128 0x12
+ 2066 06fb 01       		.uleb128 0x1
+ 2067 06fc 50       		.byte	0x50
+ 2068 06fd 03       		.uleb128 0x3
+ 2069 06fe 91       		.byte	0x91
+ 2070 06ff 8C7F     		.sleb128 -116
+ 2071 0701 12       		.uleb128 0x12
+ 2072 0702 01       		.uleb128 0x1
+ 2073 0703 51       		.byte	0x51
+ 2074 0704 05       		.uleb128 0x5
+ 2075 0705 03       		.byte	0x3
+ 2076 0706 00000000 		.4byte	.LC10
+ 2077 070a 12       		.uleb128 0x12
+ 2078 070b 01       		.uleb128 0x1
+ 2079 070c 52       		.byte	0x52
+ 2080 070d 02       		.uleb128 0x2
+ 2081 070e 75       		.byte	0x75
+ 2082 070f 00       		.sleb128 0
+ 2083 0710 00       		.byte	0
+ 2084 0711 11       		.uleb128 0x11
+ 2085 0712 18000000 		.4byte	.LVL65
+ 2086 0716 78090000 		.4byte	0x978
+ 2087 071a 26070000 		.4byte	0x726
+ 2088 071e 12       		.uleb128 0x12
+ 2089 071f 01       		.uleb128 0x1
+ 2090 0720 50       		.byte	0x50
+ 2091 0721 03       		.uleb128 0x3
+ 2092 0722 91       		.byte	0x91
+ 2093 0723 8C7F     		.sleb128 -116
+ 2094 0725 00       		.byte	0
+ 2095 0726 11       		.uleb128 0x11
+ 2096 0727 2E000000 		.4byte	.LVL66
+ 2097 072b 0A060000 		.4byte	0x60a
+ 2098 072f 44070000 		.4byte	0x744
+ 2099 0733 12       		.uleb128 0x12
+ 2100 0734 01       		.uleb128 0x1
+ 2101 0735 50       		.byte	0x50
+ 2102 0736 01       		.uleb128 0x1
+ 2103 0737 31       		.byte	0x31
+ 2104 0738 12       		.uleb128 0x12
+ 2105 0739 01       		.uleb128 0x1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 44
+
+
+ 2106 073a 51       		.byte	0x51
+ 2107 073b 01       		.uleb128 0x1
+ 2108 073c 32       		.byte	0x32
+ 2109 073d 12       		.uleb128 0x12
+ 2110 073e 01       		.uleb128 0x1
+ 2111 073f 52       		.byte	0x52
+ 2112 0740 02       		.uleb128 0x2
+ 2113 0741 74       		.byte	0x74
+ 2114 0742 03       		.sleb128 3
+ 2115 0743 00       		.byte	0
+ 2116 0744 11       		.uleb128 0x11
+ 2117 0745 38000000 		.4byte	.LVL67
+ 2118 0749 6D090000 		.4byte	0x96d
+ 2119 074d 62070000 		.4byte	0x762
+ 2120 0751 12       		.uleb128 0x12
+ 2121 0752 01       		.uleb128 0x1
+ 2122 0753 50       		.byte	0x50
+ 2123 0754 03       		.uleb128 0x3
+ 2124 0755 91       		.byte	0x91
+ 2125 0756 8C7F     		.sleb128 -116
+ 2126 0758 12       		.uleb128 0x12
+ 2127 0759 01       		.uleb128 0x1
+ 2128 075a 51       		.byte	0x51
+ 2129 075b 05       		.uleb128 0x5
+ 2130 075c 03       		.byte	0x3
+ 2131 075d 0C000000 		.4byte	.LC12
+ 2132 0761 00       		.byte	0
+ 2133 0762 11       		.uleb128 0x11
+ 2134 0763 48000000 		.4byte	.LVL69
+ 2135 0767 0A060000 		.4byte	0x60a
+ 2136 076b 80070000 		.4byte	0x780
+ 2137 076f 12       		.uleb128 0x12
+ 2138 0770 01       		.uleb128 0x1
+ 2139 0771 50       		.byte	0x50
+ 2140 0772 01       		.uleb128 0x1
+ 2141 0773 33       		.byte	0x33
+ 2142 0774 12       		.uleb128 0x12
+ 2143 0775 01       		.uleb128 0x1
+ 2144 0776 51       		.byte	0x51
+ 2145 0777 01       		.uleb128 0x1
+ 2146 0778 36       		.byte	0x36
+ 2147 0779 12       		.uleb128 0x12
+ 2148 077a 01       		.uleb128 0x1
+ 2149 077b 52       		.byte	0x52
+ 2150 077c 02       		.uleb128 0x2
+ 2151 077d 74       		.byte	0x74
+ 2152 077e 03       		.sleb128 3
+ 2153 077f 00       		.byte	0
+ 2154 0780 11       		.uleb128 0x11
+ 2155 0781 56000000 		.4byte	.LVL70
+ 2156 0785 6D090000 		.4byte	0x96d
+ 2157 0789 AA070000 		.4byte	0x7aa
+ 2158 078d 12       		.uleb128 0x12
+ 2159 078e 01       		.uleb128 0x1
+ 2160 078f 50       		.byte	0x50
+ 2161 0790 03       		.uleb128 0x3
+ 2162 0791 91       		.byte	0x91
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 45
+
+
+ 2163 0792 8C7F     		.sleb128 -116
+ 2164 0794 12       		.uleb128 0x12
+ 2165 0795 01       		.uleb128 0x1
+ 2166 0796 51       		.byte	0x51
+ 2167 0797 05       		.uleb128 0x5
+ 2168 0798 03       		.byte	0x3
+ 2169 0799 18000000 		.4byte	.LC14
+ 2170 079d 12       		.uleb128 0x12
+ 2171 079e 01       		.uleb128 0x1
+ 2172 079f 52       		.byte	0x52
+ 2173 07a0 02       		.uleb128 0x2
+ 2174 07a1 75       		.byte	0x75
+ 2175 07a2 00       		.sleb128 0
+ 2176 07a3 12       		.uleb128 0x12
+ 2177 07a4 01       		.uleb128 0x1
+ 2178 07a5 53       		.byte	0x53
+ 2179 07a6 02       		.uleb128 0x2
+ 2180 07a7 76       		.byte	0x76
+ 2181 07a8 00       		.sleb128 0
+ 2182 07a9 00       		.byte	0
+ 2183 07aa 11       		.uleb128 0x11
+ 2184 07ab 64000000 		.4byte	.LVL72
+ 2185 07af 6D090000 		.4byte	0x96d
+ 2186 07b3 C8070000 		.4byte	0x7c8
+ 2187 07b7 12       		.uleb128 0x12
+ 2188 07b8 01       		.uleb128 0x1
+ 2189 07b9 50       		.byte	0x50
+ 2190 07ba 03       		.uleb128 0x3
+ 2191 07bb 91       		.byte	0x91
+ 2192 07bc 8C7F     		.sleb128 -116
+ 2193 07be 12       		.uleb128 0x12
+ 2194 07bf 01       		.uleb128 0x1
+ 2195 07c0 51       		.byte	0x51
+ 2196 07c1 05       		.uleb128 0x5
+ 2197 07c2 03       		.byte	0x3
+ 2198 07c3 38000000 		.4byte	.LC16
+ 2199 07c7 00       		.byte	0
+ 2200 07c8 11       		.uleb128 0x11
+ 2201 07c9 7E000000 		.4byte	.LVL75
+ 2202 07cd 78090000 		.4byte	0x978
+ 2203 07d1 DD070000 		.4byte	0x7dd
+ 2204 07d5 12       		.uleb128 0x12
+ 2205 07d6 01       		.uleb128 0x1
+ 2206 07d7 50       		.byte	0x50
+ 2207 07d8 03       		.uleb128 0x3
+ 2208 07d9 91       		.byte	0x91
+ 2209 07da 8C7F     		.sleb128 -116
+ 2210 07dc 00       		.byte	0
+ 2211 07dd 13       		.uleb128 0x13
+ 2212 07de 84000000 		.4byte	.LVL76
+ 2213 07e2 78090000 		.4byte	0x978
+ 2214 07e6 12       		.uleb128 0x12
+ 2215 07e7 01       		.uleb128 0x1
+ 2216 07e8 50       		.byte	0x50
+ 2217 07e9 05       		.uleb128 0x5
+ 2218 07ea 03       		.byte	0x3
+ 2219 07eb 9C000000 		.4byte	.LC20
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 46
+
+
+ 2220 07ef 00       		.byte	0
+ 2221 07f0 00       		.byte	0
+ 2222 07f1 0B       		.uleb128 0xb
+ 2223 07f2 0B010000 		.4byte	0x10b
+ 2224 07f6 01080000 		.4byte	0x801
+ 2225 07fa 0C       		.uleb128 0xc
+ 2226 07fb 4C010000 		.4byte	0x14c
+ 2227 07ff 63       		.byte	0x63
+ 2228 0800 00       		.byte	0
+ 2229 0801 24       		.uleb128 0x24
+ 2230 0802 85030000 		.4byte	.LASF68
+ 2231 0806 01       		.byte	0x1
+ 2232 0807 16       		.byte	0x16
+ 2233 0808 27050000 		.4byte	0x527
+ 2234 080c 05       		.uleb128 0x5
+ 2235 080d 03       		.byte	0x3
+ 2236 080e 00000000 		.4byte	messagePresentFlag
+ 2237 0812 24       		.uleb128 0x24
+ 2238 0813 3D000000 		.4byte	.LASF69
+ 2239 0817 01       		.byte	0x1
+ 2240 0818 17       		.byte	0x17
+ 2241 0819 27050000 		.4byte	0x527
+ 2242 081d 05       		.uleb128 0x5
+ 2243 081e 03       		.byte	0x3
+ 2244 081f 00000000 		.4byte	messageReadFlag
+ 2245 0823 0B       		.uleb128 0xb
+ 2246 0824 33080000 		.4byte	0x833
+ 2247 0828 33080000 		.4byte	0x833
+ 2248 082c 0C       		.uleb128 0xc
+ 2249 082d 4C010000 		.4byte	0x14c
+ 2250 0831 0F       		.byte	0xf
+ 2251 0832 00       		.byte	0
+ 2252 0833 06       		.uleb128 0x6
+ 2253 0834 53030000 		.4byte	0x353
+ 2254 0838 24       		.uleb128 0x24
+ 2255 0839 5D020000 		.4byte	.LASF70
+ 2256 083d 01       		.byte	0x1
+ 2257 083e 1D       		.byte	0x1d
+ 2258 083f 49080000 		.4byte	0x849
+ 2259 0843 05       		.uleb128 0x5
+ 2260 0844 03       		.byte	0x3
+ 2261 0845 00000000 		.4byte	latestMessage
+ 2262 0849 06       		.uleb128 0x6
+ 2263 084a 23080000 		.4byte	0x823
+ 2264 084e 24       		.uleb128 0x24
+ 2265 084f C9040000 		.4byte	.LASF71
+ 2266 0853 01       		.byte	0x1
+ 2267 0854 1E       		.byte	0x1e
+ 2268 0855 27050000 		.4byte	0x527
+ 2269 0859 05       		.uleb128 0x5
+ 2270 085a 03       		.byte	0x3
+ 2271 085b 00000000 		.4byte	latestMessageHead
+ 2272 085f 24       		.uleb128 0x24
+ 2273 0860 77010000 		.4byte	.LASF72
+ 2274 0864 01       		.byte	0x1
+ 2275 0865 1F       		.byte	0x1f
+ 2276 0866 27050000 		.4byte	0x527
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 47
+
+
+ 2277 086a 05       		.uleb128 0x5
+ 2278 086b 03       		.byte	0x3
+ 2279 086c 00000000 		.4byte	latestMessageTail
+ 2280 0870 24       		.uleb128 0x24
+ 2281 0871 65000000 		.4byte	.LASF73
+ 2282 0875 01       		.byte	0x1
+ 2283 0876 20       		.byte	0x20
+ 2284 0877 27050000 		.4byte	0x527
+ 2285 087b 05       		.uleb128 0x5
+ 2286 087c 03       		.byte	0x3
+ 2287 087d 00000000 		.4byte	latestMessageFull
+ 2288 0881 24       		.uleb128 0x24
+ 2289 0882 3E020000 		.4byte	.LASF74
+ 2290 0886 01       		.byte	0x1
+ 2291 0887 24       		.byte	0x24
+ 2292 0888 94000000 		.4byte	0x94
+ 2293 088c 05       		.uleb128 0x5
+ 2294 088d 03       		.byte	0x3
+ 2295 088e 00000000 		.4byte	deviceAddress
+ 2296 0892 24       		.uleb128 0x24
+ 2297 0893 9D040000 		.4byte	.LASF75
+ 2298 0897 01       		.byte	0x1
+ 2299 0898 25       		.byte	0x25
+ 2300 0899 94000000 		.4byte	0x94
+ 2301 089d 05       		.uleb128 0x5
+ 2302 089e 03       		.byte	0x3
+ 2303 089f 00000000 		.4byte	deviceGroup
+ 2304 08a3 24       		.uleb128 0x24
+ 2305 08a4 6B030000 		.4byte	.LASF76
+ 2306 08a8 01       		.byte	0x1
+ 2307 08a9 26       		.byte	0x26
+ 2308 08aa A4020000 		.4byte	0x2a4
+ 2309 08ae 05       		.uleb128 0x5
+ 2310 08af 03       		.byte	0x3
+ 2311 08b0 00000000 		.4byte	rxMailbox
+ 2312 08b4 24       		.uleb128 0x24
+ 2313 08b5 FB010000 		.4byte	.LASF50
+ 2314 08b9 01       		.byte	0x1
+ 2315 08ba 28       		.byte	0x28
+ 2316 08bb 94000000 		.4byte	0x94
+ 2317 08bf 05       		.uleb128 0x5
+ 2318 08c0 03       		.byte	0x3
+ 2319 08c1 00000000 		.4byte	mailbox
+ 2320 08c5 24       		.uleb128 0x24
+ 2321 08c6 8E010000 		.4byte	.LASF65
+ 2322 08ca 01       		.byte	0x1
+ 2323 08cb 2A       		.byte	0x2a
+ 2324 08cc 33080000 		.4byte	0x833
+ 2325 08d0 05       		.uleb128 0x5
+ 2326 08d1 03       		.byte	0x3
+ 2327 08d2 00000000 		.4byte	packet
+ 2328 08d6 24       		.uleb128 0x24
+ 2329 08d7 20020000 		.4byte	.LASF77
+ 2330 08db 01       		.byte	0x1
+ 2331 08dc 2E       		.byte	0x2e
+ 2332 08dd 60020000 		.4byte	0x260
+ 2333 08e1 05       		.uleb128 0x5
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 48
+
+
+ 2334 08e2 03       		.byte	0x3
+ 2335 08e3 00000000 		.4byte	messagePWM
+ 2336 08e7 24       		.uleb128 0x24
+ 2337 08e8 C2020000 		.4byte	.LASF78
+ 2338 08ec 01       		.byte	0x1
+ 2339 08ed 2F       		.byte	0x2f
+ 2340 08ee 2A010000 		.4byte	0x12a
+ 2341 08f2 05       		.uleb128 0x5
+ 2342 08f3 03       		.byte	0x3
+ 2343 08f4 00000000 		.4byte	receiveMailboxNumber
+ 2344 08f8 24       		.uleb128 0x24
+ 2345 08f9 D7020000 		.4byte	.LASF79
+ 2346 08fd 01       		.byte	0x1
+ 2347 08fe 31       		.byte	0x31
+ 2348 08ff 2F010000 		.4byte	0x12f
+ 2349 0903 05       		.uleb128 0x5
+ 2350 0904 03       		.byte	0x3
+ 2351 0905 00000000 		.4byte	CAN_time_LED
+ 2352 0909 24       		.uleb128 0x24
+ 2353 090a 4C040000 		.4byte	.LASF80
+ 2354 090e 02       		.byte	0x2
+ 2355 090f 11       		.byte	0x11
+ 2356 0910 F1070000 		.4byte	0x7f1
+ 2357 0914 05       		.uleb128 0x5
+ 2358 0915 03       		.byte	0x3
+ 2359 0916 00000000 		.4byte	uart_tx
+ 2360 091a 24       		.uleb128 0x24
+ 2361 091b 00000000 		.4byte	.LASF81
+ 2362 091f 02       		.byte	0x2
+ 2363 0920 12       		.byte	0x12
+ 2364 0921 F1070000 		.4byte	0x7f1
+ 2365 0925 05       		.uleb128 0x5
+ 2366 0926 03       		.byte	0x3
+ 2367 0927 00000000 		.4byte	uart_rx
+ 2368 092b 25       		.uleb128 0x25
+ 2369 092c AD000000 		.4byte	.LASF95
+ 2370 0930 AD000000 		.4byte	.LASF95
+ 2371 0934 26       		.uleb128 0x26
+ 2372 0935 0C040000 		.4byte	.LASF82
+ 2373 0939 0C040000 		.4byte	.LASF82
+ 2374 093d 06       		.byte	0x6
+ 2375 093e 1801     		.2byte	0x118
+ 2376 0940 27       		.uleb128 0x27
+ 2377 0941 B4000000 		.4byte	.LASF83
+ 2378 0945 B4000000 		.4byte	.LASF83
+ 2379 0949 06       		.byte	0x6
+ 2380 094a C5       		.byte	0xc5
+ 2381 094b 26       		.uleb128 0x26
+ 2382 094c 75030000 		.4byte	.LASF84
+ 2383 0950 75030000 		.4byte	.LASF84
+ 2384 0954 06       		.byte	0x6
+ 2385 0955 1301     		.2byte	0x113
+ 2386 0957 27       		.uleb128 0x27
+ 2387 0958 2E040000 		.4byte	.LASF85
+ 2388 095c 2E040000 		.4byte	.LASF85
+ 2389 0960 06       		.byte	0x6
+ 2390 0961 C8       		.byte	0xc8
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 49
+
+
+ 2391 0962 27       		.uleb128 0x27
+ 2392 0963 6D040000 		.4byte	.LASF86
+ 2393 0967 6D040000 		.4byte	.LASF86
+ 2394 096b 07       		.byte	0x7
+ 2395 096c D0       		.byte	0xd0
+ 2396 096d 27       		.uleb128 0x27
+ 2397 096e 4C020000 		.4byte	.LASF87
+ 2398 0972 4C020000 		.4byte	.LASF87
+ 2399 0976 08       		.byte	0x8
+ 2400 0977 00       		.byte	0
+ 2401 0978 26       		.uleb128 0x26
+ 2402 0979 64010000 		.4byte	.LASF88
+ 2403 097d 64010000 		.4byte	.LASF88
+ 2404 0981 09       		.byte	0x9
+ 2405 0982 2A03     		.2byte	0x32a
+ 2406 0984 00       		.byte	0
+ 2407              		.section	.debug_abbrev,"",%progbits
+ 2408              	.Ldebug_abbrev0:
+ 2409 0000 01       		.uleb128 0x1
+ 2410 0001 11       		.uleb128 0x11
+ 2411 0002 01       		.byte	0x1
+ 2412 0003 25       		.uleb128 0x25
+ 2413 0004 0E       		.uleb128 0xe
+ 2414 0005 13       		.uleb128 0x13
+ 2415 0006 0B       		.uleb128 0xb
+ 2416 0007 03       		.uleb128 0x3
+ 2417 0008 0E       		.uleb128 0xe
+ 2418 0009 1B       		.uleb128 0x1b
+ 2419 000a 0E       		.uleb128 0xe
+ 2420 000b 55       		.uleb128 0x55
+ 2421 000c 17       		.uleb128 0x17
+ 2422 000d 11       		.uleb128 0x11
+ 2423 000e 01       		.uleb128 0x1
+ 2424 000f 10       		.uleb128 0x10
+ 2425 0010 17       		.uleb128 0x17
+ 2426 0011 00       		.byte	0
+ 2427 0012 00       		.byte	0
+ 2428 0013 02       		.uleb128 0x2
+ 2429 0014 24       		.uleb128 0x24
+ 2430 0015 00       		.byte	0
+ 2431 0016 0B       		.uleb128 0xb
+ 2432 0017 0B       		.uleb128 0xb
+ 2433 0018 3E       		.uleb128 0x3e
+ 2434 0019 0B       		.uleb128 0xb
+ 2435 001a 03       		.uleb128 0x3
+ 2436 001b 0E       		.uleb128 0xe
+ 2437 001c 00       		.byte	0
+ 2438 001d 00       		.byte	0
+ 2439 001e 03       		.uleb128 0x3
+ 2440 001f 16       		.uleb128 0x16
+ 2441 0020 00       		.byte	0
+ 2442 0021 03       		.uleb128 0x3
+ 2443 0022 0E       		.uleb128 0xe
+ 2444 0023 3A       		.uleb128 0x3a
+ 2445 0024 0B       		.uleb128 0xb
+ 2446 0025 3B       		.uleb128 0x3b
+ 2447 0026 0B       		.uleb128 0xb
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 50
+
+
+ 2448 0027 49       		.uleb128 0x49
+ 2449 0028 13       		.uleb128 0x13
+ 2450 0029 00       		.byte	0
+ 2451 002a 00       		.byte	0
+ 2452 002b 04       		.uleb128 0x4
+ 2453 002c 24       		.uleb128 0x24
+ 2454 002d 00       		.byte	0
+ 2455 002e 0B       		.uleb128 0xb
+ 2456 002f 0B       		.uleb128 0xb
+ 2457 0030 3E       		.uleb128 0x3e
+ 2458 0031 0B       		.uleb128 0xb
+ 2459 0032 03       		.uleb128 0x3
+ 2460 0033 08       		.uleb128 0x8
+ 2461 0034 00       		.byte	0
+ 2462 0035 00       		.byte	0
+ 2463 0036 05       		.uleb128 0x5
+ 2464 0037 16       		.uleb128 0x16
+ 2465 0038 00       		.byte	0
+ 2466 0039 03       		.uleb128 0x3
+ 2467 003a 0E       		.uleb128 0xe
+ 2468 003b 3A       		.uleb128 0x3a
+ 2469 003c 0B       		.uleb128 0xb
+ 2470 003d 3B       		.uleb128 0x3b
+ 2471 003e 05       		.uleb128 0x5
+ 2472 003f 49       		.uleb128 0x49
+ 2473 0040 13       		.uleb128 0x13
+ 2474 0041 00       		.byte	0
+ 2475 0042 00       		.byte	0
+ 2476 0043 06       		.uleb128 0x6
+ 2477 0044 35       		.uleb128 0x35
+ 2478 0045 00       		.byte	0
+ 2479 0046 49       		.uleb128 0x49
+ 2480 0047 13       		.uleb128 0x13
+ 2481 0048 00       		.byte	0
+ 2482 0049 00       		.byte	0
+ 2483 004a 07       		.uleb128 0x7
+ 2484 004b 0F       		.uleb128 0xf
+ 2485 004c 00       		.byte	0
+ 2486 004d 0B       		.uleb128 0xb
+ 2487 004e 0B       		.uleb128 0xb
+ 2488 004f 49       		.uleb128 0x49
+ 2489 0050 13       		.uleb128 0x13
+ 2490 0051 00       		.byte	0
+ 2491 0052 00       		.byte	0
+ 2492 0053 08       		.uleb128 0x8
+ 2493 0054 26       		.uleb128 0x26
+ 2494 0055 00       		.byte	0
+ 2495 0056 49       		.uleb128 0x49
+ 2496 0057 13       		.uleb128 0x13
+ 2497 0058 00       		.byte	0
+ 2498 0059 00       		.byte	0
+ 2499 005a 09       		.uleb128 0x9
+ 2500 005b 13       		.uleb128 0x13
+ 2501 005c 01       		.byte	0x1
+ 2502 005d 0B       		.uleb128 0xb
+ 2503 005e 0B       		.uleb128 0xb
+ 2504 005f 3A       		.uleb128 0x3a
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 51
+
+
+ 2505 0060 0B       		.uleb128 0xb
+ 2506 0061 3B       		.uleb128 0x3b
+ 2507 0062 0B       		.uleb128 0xb
+ 2508 0063 01       		.uleb128 0x1
+ 2509 0064 13       		.uleb128 0x13
+ 2510 0065 00       		.byte	0
+ 2511 0066 00       		.byte	0
+ 2512 0067 0A       		.uleb128 0xa
+ 2513 0068 0D       		.uleb128 0xd
+ 2514 0069 00       		.byte	0
+ 2515 006a 03       		.uleb128 0x3
+ 2516 006b 0E       		.uleb128 0xe
+ 2517 006c 3A       		.uleb128 0x3a
+ 2518 006d 0B       		.uleb128 0xb
+ 2519 006e 3B       		.uleb128 0x3b
+ 2520 006f 0B       		.uleb128 0xb
+ 2521 0070 49       		.uleb128 0x49
+ 2522 0071 13       		.uleb128 0x13
+ 2523 0072 38       		.uleb128 0x38
+ 2524 0073 0B       		.uleb128 0xb
+ 2525 0074 00       		.byte	0
+ 2526 0075 00       		.byte	0
+ 2527 0076 0B       		.uleb128 0xb
+ 2528 0077 01       		.uleb128 0x1
+ 2529 0078 01       		.byte	0x1
+ 2530 0079 49       		.uleb128 0x49
+ 2531 007a 13       		.uleb128 0x13
+ 2532 007b 01       		.uleb128 0x1
+ 2533 007c 13       		.uleb128 0x13
+ 2534 007d 00       		.byte	0
+ 2535 007e 00       		.byte	0
+ 2536 007f 0C       		.uleb128 0xc
+ 2537 0080 21       		.uleb128 0x21
+ 2538 0081 00       		.byte	0
+ 2539 0082 49       		.uleb128 0x49
+ 2540 0083 13       		.uleb128 0x13
+ 2541 0084 2F       		.uleb128 0x2f
+ 2542 0085 0B       		.uleb128 0xb
+ 2543 0086 00       		.byte	0
+ 2544 0087 00       		.byte	0
+ 2545 0088 0D       		.uleb128 0xd
+ 2546 0089 0D       		.uleb128 0xd
+ 2547 008a 00       		.byte	0
+ 2548 008b 03       		.uleb128 0x3
+ 2549 008c 08       		.uleb128 0x8
+ 2550 008d 3A       		.uleb128 0x3a
+ 2551 008e 0B       		.uleb128 0xb
+ 2552 008f 3B       		.uleb128 0x3b
+ 2553 0090 0B       		.uleb128 0xb
+ 2554 0091 49       		.uleb128 0x49
+ 2555 0092 13       		.uleb128 0x13
+ 2556 0093 38       		.uleb128 0x38
+ 2557 0094 0B       		.uleb128 0xb
+ 2558 0095 00       		.byte	0
+ 2559 0096 00       		.byte	0
+ 2560 0097 0E       		.uleb128 0xe
+ 2561 0098 2E       		.uleb128 0x2e
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 52
+
+
+ 2562 0099 01       		.byte	0x1
+ 2563 009a 3F       		.uleb128 0x3f
+ 2564 009b 19       		.uleb128 0x19
+ 2565 009c 03       		.uleb128 0x3
+ 2566 009d 0E       		.uleb128 0xe
+ 2567 009e 3A       		.uleb128 0x3a
+ 2568 009f 0B       		.uleb128 0xb
+ 2569 00a0 3B       		.uleb128 0x3b
+ 2570 00a1 0B       		.uleb128 0xb
+ 2571 00a2 27       		.uleb128 0x27
+ 2572 00a3 19       		.uleb128 0x19
+ 2573 00a4 49       		.uleb128 0x49
+ 2574 00a5 13       		.uleb128 0x13
+ 2575 00a6 11       		.uleb128 0x11
+ 2576 00a7 01       		.uleb128 0x1
+ 2577 00a8 12       		.uleb128 0x12
+ 2578 00a9 06       		.uleb128 0x6
+ 2579 00aa 40       		.uleb128 0x40
+ 2580 00ab 18       		.uleb128 0x18
+ 2581 00ac 9742     		.uleb128 0x2117
+ 2582 00ae 19       		.uleb128 0x19
+ 2583 00af 01       		.uleb128 0x1
+ 2584 00b0 13       		.uleb128 0x13
+ 2585 00b1 00       		.byte	0
+ 2586 00b2 00       		.byte	0
+ 2587 00b3 0F       		.uleb128 0xf
+ 2588 00b4 05       		.uleb128 0x5
+ 2589 00b5 00       		.byte	0
+ 2590 00b6 03       		.uleb128 0x3
+ 2591 00b7 0E       		.uleb128 0xe
+ 2592 00b8 3A       		.uleb128 0x3a
+ 2593 00b9 0B       		.uleb128 0xb
+ 2594 00ba 3B       		.uleb128 0x3b
+ 2595 00bb 0B       		.uleb128 0xb
+ 2596 00bc 49       		.uleb128 0x49
+ 2597 00bd 13       		.uleb128 0x13
+ 2598 00be 02       		.uleb128 0x2
+ 2599 00bf 17       		.uleb128 0x17
+ 2600 00c0 00       		.byte	0
+ 2601 00c1 00       		.byte	0
+ 2602 00c2 10       		.uleb128 0x10
+ 2603 00c3 34       		.uleb128 0x34
+ 2604 00c4 00       		.byte	0
+ 2605 00c5 03       		.uleb128 0x3
+ 2606 00c6 0E       		.uleb128 0xe
+ 2607 00c7 3A       		.uleb128 0x3a
+ 2608 00c8 0B       		.uleb128 0xb
+ 2609 00c9 3B       		.uleb128 0x3b
+ 2610 00ca 0B       		.uleb128 0xb
+ 2611 00cb 49       		.uleb128 0x49
+ 2612 00cc 13       		.uleb128 0x13
+ 2613 00cd 02       		.uleb128 0x2
+ 2614 00ce 18       		.uleb128 0x18
+ 2615 00cf 00       		.byte	0
+ 2616 00d0 00       		.byte	0
+ 2617 00d1 11       		.uleb128 0x11
+ 2618 00d2 898201   		.uleb128 0x4109
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 53
+
+
+ 2619 00d5 01       		.byte	0x1
+ 2620 00d6 11       		.uleb128 0x11
+ 2621 00d7 01       		.uleb128 0x1
+ 2622 00d8 31       		.uleb128 0x31
+ 2623 00d9 13       		.uleb128 0x13
+ 2624 00da 01       		.uleb128 0x1
+ 2625 00db 13       		.uleb128 0x13
+ 2626 00dc 00       		.byte	0
+ 2627 00dd 00       		.byte	0
+ 2628 00de 12       		.uleb128 0x12
+ 2629 00df 8A8201   		.uleb128 0x410a
+ 2630 00e2 00       		.byte	0
+ 2631 00e3 02       		.uleb128 0x2
+ 2632 00e4 18       		.uleb128 0x18
+ 2633 00e5 9142     		.uleb128 0x2111
+ 2634 00e7 18       		.uleb128 0x18
+ 2635 00e8 00       		.byte	0
+ 2636 00e9 00       		.byte	0
+ 2637 00ea 13       		.uleb128 0x13
+ 2638 00eb 898201   		.uleb128 0x4109
+ 2639 00ee 01       		.byte	0x1
+ 2640 00ef 11       		.uleb128 0x11
+ 2641 00f0 01       		.uleb128 0x1
+ 2642 00f1 31       		.uleb128 0x31
+ 2643 00f2 13       		.uleb128 0x13
+ 2644 00f3 00       		.byte	0
+ 2645 00f4 00       		.byte	0
+ 2646 00f5 14       		.uleb128 0x14
+ 2647 00f6 2E       		.uleb128 0x2e
+ 2648 00f7 01       		.byte	0x1
+ 2649 00f8 3F       		.uleb128 0x3f
+ 2650 00f9 19       		.uleb128 0x19
+ 2651 00fa 03       		.uleb128 0x3
+ 2652 00fb 0E       		.uleb128 0xe
+ 2653 00fc 3A       		.uleb128 0x3a
+ 2654 00fd 0B       		.uleb128 0xb
+ 2655 00fe 3B       		.uleb128 0x3b
+ 2656 00ff 0B       		.uleb128 0xb
+ 2657 0100 11       		.uleb128 0x11
+ 2658 0101 01       		.uleb128 0x1
+ 2659 0102 12       		.uleb128 0x12
+ 2660 0103 06       		.uleb128 0x6
+ 2661 0104 40       		.uleb128 0x40
+ 2662 0105 18       		.uleb128 0x18
+ 2663 0106 9742     		.uleb128 0x2117
+ 2664 0108 19       		.uleb128 0x19
+ 2665 0109 01       		.uleb128 0x1
+ 2666 010a 13       		.uleb128 0x13
+ 2667 010b 00       		.byte	0
+ 2668 010c 00       		.byte	0
+ 2669 010d 15       		.uleb128 0x15
+ 2670 010e 898201   		.uleb128 0x4109
+ 2671 0111 00       		.byte	0
+ 2672 0112 11       		.uleb128 0x11
+ 2673 0113 01       		.uleb128 0x1
+ 2674 0114 31       		.uleb128 0x31
+ 2675 0115 13       		.uleb128 0x13
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 54
+
+
+ 2676 0116 00       		.byte	0
+ 2677 0117 00       		.byte	0
+ 2678 0118 16       		.uleb128 0x16
+ 2679 0119 2E       		.uleb128 0x2e
+ 2680 011a 00       		.byte	0
+ 2681 011b 3F       		.uleb128 0x3f
+ 2682 011c 19       		.uleb128 0x19
+ 2683 011d 03       		.uleb128 0x3
+ 2684 011e 0E       		.uleb128 0xe
+ 2685 011f 3A       		.uleb128 0x3a
+ 2686 0120 0B       		.uleb128 0xb
+ 2687 0121 3B       		.uleb128 0x3b
+ 2688 0122 0B       		.uleb128 0xb
+ 2689 0123 27       		.uleb128 0x27
+ 2690 0124 19       		.uleb128 0x19
+ 2691 0125 49       		.uleb128 0x49
+ 2692 0126 13       		.uleb128 0x13
+ 2693 0127 11       		.uleb128 0x11
+ 2694 0128 01       		.uleb128 0x1
+ 2695 0129 12       		.uleb128 0x12
+ 2696 012a 06       		.uleb128 0x6
+ 2697 012b 40       		.uleb128 0x40
+ 2698 012c 18       		.uleb128 0x18
+ 2699 012d 9742     		.uleb128 0x2117
+ 2700 012f 19       		.uleb128 0x19
+ 2701 0130 00       		.byte	0
+ 2702 0131 00       		.byte	0
+ 2703 0132 17       		.uleb128 0x17
+ 2704 0133 2E       		.uleb128 0x2e
+ 2705 0134 00       		.byte	0
+ 2706 0135 3F       		.uleb128 0x3f
+ 2707 0136 19       		.uleb128 0x19
+ 2708 0137 03       		.uleb128 0x3
+ 2709 0138 0E       		.uleb128 0xe
+ 2710 0139 3A       		.uleb128 0x3a
+ 2711 013a 0B       		.uleb128 0xb
+ 2712 013b 3B       		.uleb128 0x3b
+ 2713 013c 0B       		.uleb128 0xb
+ 2714 013d 27       		.uleb128 0x27
+ 2715 013e 19       		.uleb128 0x19
+ 2716 013f 11       		.uleb128 0x11
+ 2717 0140 01       		.uleb128 0x1
+ 2718 0141 12       		.uleb128 0x12
+ 2719 0142 06       		.uleb128 0x6
+ 2720 0143 40       		.uleb128 0x40
+ 2721 0144 18       		.uleb128 0x18
+ 2722 0145 9742     		.uleb128 0x2117
+ 2723 0147 19       		.uleb128 0x19
+ 2724 0148 00       		.byte	0
+ 2725 0149 00       		.byte	0
+ 2726 014a 18       		.uleb128 0x18
+ 2727 014b 2E       		.uleb128 0x2e
+ 2728 014c 01       		.byte	0x1
+ 2729 014d 3F       		.uleb128 0x3f
+ 2730 014e 19       		.uleb128 0x19
+ 2731 014f 03       		.uleb128 0x3
+ 2732 0150 0E       		.uleb128 0xe
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 55
+
+
+ 2733 0151 3A       		.uleb128 0x3a
+ 2734 0152 0B       		.uleb128 0xb
+ 2735 0153 3B       		.uleb128 0x3b
+ 2736 0154 0B       		.uleb128 0xb
+ 2737 0155 27       		.uleb128 0x27
+ 2738 0156 19       		.uleb128 0x19
+ 2739 0157 11       		.uleb128 0x11
+ 2740 0158 01       		.uleb128 0x1
+ 2741 0159 12       		.uleb128 0x12
+ 2742 015a 06       		.uleb128 0x6
+ 2743 015b 40       		.uleb128 0x40
+ 2744 015c 18       		.uleb128 0x18
+ 2745 015d 9742     		.uleb128 0x2117
+ 2746 015f 19       		.uleb128 0x19
+ 2747 0160 01       		.uleb128 0x1
+ 2748 0161 13       		.uleb128 0x13
+ 2749 0162 00       		.byte	0
+ 2750 0163 00       		.byte	0
+ 2751 0164 19       		.uleb128 0x19
+ 2752 0165 34       		.uleb128 0x34
+ 2753 0166 00       		.byte	0
+ 2754 0167 03       		.uleb128 0x3
+ 2755 0168 0E       		.uleb128 0xe
+ 2756 0169 3A       		.uleb128 0x3a
+ 2757 016a 0B       		.uleb128 0xb
+ 2758 016b 3B       		.uleb128 0x3b
+ 2759 016c 0B       		.uleb128 0xb
+ 2760 016d 49       		.uleb128 0x49
+ 2761 016e 13       		.uleb128 0x13
+ 2762 016f 02       		.uleb128 0x2
+ 2763 0170 17       		.uleb128 0x17
+ 2764 0171 00       		.byte	0
+ 2765 0172 00       		.byte	0
+ 2766 0173 1A       		.uleb128 0x1a
+ 2767 0174 2E       		.uleb128 0x2e
+ 2768 0175 01       		.byte	0x1
+ 2769 0176 3F       		.uleb128 0x3f
+ 2770 0177 19       		.uleb128 0x19
+ 2771 0178 03       		.uleb128 0x3
+ 2772 0179 08       		.uleb128 0x8
+ 2773 017a 3A       		.uleb128 0x3a
+ 2774 017b 0B       		.uleb128 0xb
+ 2775 017c 3B       		.uleb128 0x3b
+ 2776 017d 0B       		.uleb128 0xb
+ 2777 017e 27       		.uleb128 0x27
+ 2778 017f 19       		.uleb128 0x19
+ 2779 0180 49       		.uleb128 0x49
+ 2780 0181 13       		.uleb128 0x13
+ 2781 0182 11       		.uleb128 0x11
+ 2782 0183 01       		.uleb128 0x1
+ 2783 0184 12       		.uleb128 0x12
+ 2784 0185 06       		.uleb128 0x6
+ 2785 0186 40       		.uleb128 0x40
+ 2786 0187 18       		.uleb128 0x18
+ 2787 0188 9742     		.uleb128 0x2117
+ 2788 018a 19       		.uleb128 0x19
+ 2789 018b 01       		.uleb128 0x1
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 56
+
+
+ 2790 018c 13       		.uleb128 0x13
+ 2791 018d 00       		.byte	0
+ 2792 018e 00       		.byte	0
+ 2793 018f 1B       		.uleb128 0x1b
+ 2794 0190 05       		.uleb128 0x5
+ 2795 0191 00       		.byte	0
+ 2796 0192 03       		.uleb128 0x3
+ 2797 0193 08       		.uleb128 0x8
+ 2798 0194 3A       		.uleb128 0x3a
+ 2799 0195 0B       		.uleb128 0xb
+ 2800 0196 3B       		.uleb128 0x3b
+ 2801 0197 0B       		.uleb128 0xb
+ 2802 0198 49       		.uleb128 0x49
+ 2803 0199 13       		.uleb128 0x13
+ 2804 019a 02       		.uleb128 0x2
+ 2805 019b 17       		.uleb128 0x17
+ 2806 019c 00       		.byte	0
+ 2807 019d 00       		.byte	0
+ 2808 019e 1C       		.uleb128 0x1c
+ 2809 019f 34       		.uleb128 0x34
+ 2810 01a0 00       		.byte	0
+ 2811 01a1 03       		.uleb128 0x3
+ 2812 01a2 08       		.uleb128 0x8
+ 2813 01a3 3A       		.uleb128 0x3a
+ 2814 01a4 0B       		.uleb128 0xb
+ 2815 01a5 3B       		.uleb128 0x3b
+ 2816 01a6 0B       		.uleb128 0xb
+ 2817 01a7 49       		.uleb128 0x49
+ 2818 01a8 13       		.uleb128 0x13
+ 2819 01a9 02       		.uleb128 0x2
+ 2820 01aa 17       		.uleb128 0x17
+ 2821 01ab 00       		.byte	0
+ 2822 01ac 00       		.byte	0
+ 2823 01ad 1D       		.uleb128 0x1d
+ 2824 01ae 0B       		.uleb128 0xb
+ 2825 01af 01       		.byte	0x1
+ 2826 01b0 11       		.uleb128 0x11
+ 2827 01b1 01       		.uleb128 0x1
+ 2828 01b2 12       		.uleb128 0x12
+ 2829 01b3 06       		.uleb128 0x6
+ 2830 01b4 01       		.uleb128 0x1
+ 2831 01b5 13       		.uleb128 0x13
+ 2832 01b6 00       		.byte	0
+ 2833 01b7 00       		.byte	0
+ 2834 01b8 1E       		.uleb128 0x1e
+ 2835 01b9 05       		.uleb128 0x5
+ 2836 01ba 00       		.byte	0
+ 2837 01bb 03       		.uleb128 0x3
+ 2838 01bc 0E       		.uleb128 0xe
+ 2839 01bd 3A       		.uleb128 0x3a
+ 2840 01be 0B       		.uleb128 0xb
+ 2841 01bf 3B       		.uleb128 0x3b
+ 2842 01c0 0B       		.uleb128 0xb
+ 2843 01c1 49       		.uleb128 0x49
+ 2844 01c2 13       		.uleb128 0x13
+ 2845 01c3 02       		.uleb128 0x2
+ 2846 01c4 18       		.uleb128 0x18
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 57
+
+
+ 2847 01c5 00       		.byte	0
+ 2848 01c6 00       		.byte	0
+ 2849 01c7 1F       		.uleb128 0x1f
+ 2850 01c8 0B       		.uleb128 0xb
+ 2851 01c9 01       		.byte	0x1
+ 2852 01ca 55       		.uleb128 0x55
+ 2853 01cb 17       		.uleb128 0x17
+ 2854 01cc 01       		.uleb128 0x1
+ 2855 01cd 13       		.uleb128 0x13
+ 2856 01ce 00       		.byte	0
+ 2857 01cf 00       		.byte	0
+ 2858 01d0 20       		.uleb128 0x20
+ 2859 01d1 0B       		.uleb128 0xb
+ 2860 01d2 01       		.byte	0x1
+ 2861 01d3 11       		.uleb128 0x11
+ 2862 01d4 01       		.uleb128 0x1
+ 2863 01d5 12       		.uleb128 0x12
+ 2864 01d6 06       		.uleb128 0x6
+ 2865 01d7 00       		.byte	0
+ 2866 01d8 00       		.byte	0
+ 2867 01d9 21       		.uleb128 0x21
+ 2868 01da 2E       		.uleb128 0x2e
+ 2869 01db 01       		.byte	0x1
+ 2870 01dc 3F       		.uleb128 0x3f
+ 2871 01dd 19       		.uleb128 0x19
+ 2872 01de 03       		.uleb128 0x3
+ 2873 01df 0E       		.uleb128 0xe
+ 2874 01e0 3A       		.uleb128 0x3a
+ 2875 01e1 0B       		.uleb128 0xb
+ 2876 01e2 3B       		.uleb128 0x3b
+ 2877 01e3 0B       		.uleb128 0xb
+ 2878 01e4 27       		.uleb128 0x27
+ 2879 01e5 19       		.uleb128 0x19
+ 2880 01e6 49       		.uleb128 0x49
+ 2881 01e7 13       		.uleb128 0x13
+ 2882 01e8 3C       		.uleb128 0x3c
+ 2883 01e9 19       		.uleb128 0x19
+ 2884 01ea 01       		.uleb128 0x1
+ 2885 01eb 13       		.uleb128 0x13
+ 2886 01ec 00       		.byte	0
+ 2887 01ed 00       		.byte	0
+ 2888 01ee 22       		.uleb128 0x22
+ 2889 01ef 05       		.uleb128 0x5
+ 2890 01f0 00       		.byte	0
+ 2891 01f1 49       		.uleb128 0x49
+ 2892 01f2 13       		.uleb128 0x13
+ 2893 01f3 00       		.byte	0
+ 2894 01f4 00       		.byte	0
+ 2895 01f5 23       		.uleb128 0x23
+ 2896 01f6 18       		.uleb128 0x18
+ 2897 01f7 00       		.byte	0
+ 2898 01f8 00       		.byte	0
+ 2899 01f9 00       		.byte	0
+ 2900 01fa 24       		.uleb128 0x24
+ 2901 01fb 34       		.uleb128 0x34
+ 2902 01fc 00       		.byte	0
+ 2903 01fd 03       		.uleb128 0x3
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 58
+
+
+ 2904 01fe 0E       		.uleb128 0xe
+ 2905 01ff 3A       		.uleb128 0x3a
+ 2906 0200 0B       		.uleb128 0xb
+ 2907 0201 3B       		.uleb128 0x3b
+ 2908 0202 0B       		.uleb128 0xb
+ 2909 0203 49       		.uleb128 0x49
+ 2910 0204 13       		.uleb128 0x13
+ 2911 0205 3F       		.uleb128 0x3f
+ 2912 0206 19       		.uleb128 0x19
+ 2913 0207 02       		.uleb128 0x2
+ 2914 0208 18       		.uleb128 0x18
+ 2915 0209 00       		.byte	0
+ 2916 020a 00       		.byte	0
+ 2917 020b 25       		.uleb128 0x25
+ 2918 020c 2E       		.uleb128 0x2e
+ 2919 020d 00       		.byte	0
+ 2920 020e 3F       		.uleb128 0x3f
+ 2921 020f 19       		.uleb128 0x19
+ 2922 0210 3C       		.uleb128 0x3c
+ 2923 0211 19       		.uleb128 0x19
+ 2924 0212 6E       		.uleb128 0x6e
+ 2925 0213 0E       		.uleb128 0xe
+ 2926 0214 03       		.uleb128 0x3
+ 2927 0215 0E       		.uleb128 0xe
+ 2928 0216 00       		.byte	0
+ 2929 0217 00       		.byte	0
+ 2930 0218 26       		.uleb128 0x26
+ 2931 0219 2E       		.uleb128 0x2e
+ 2932 021a 00       		.byte	0
+ 2933 021b 3F       		.uleb128 0x3f
+ 2934 021c 19       		.uleb128 0x19
+ 2935 021d 3C       		.uleb128 0x3c
+ 2936 021e 19       		.uleb128 0x19
+ 2937 021f 6E       		.uleb128 0x6e
+ 2938 0220 0E       		.uleb128 0xe
+ 2939 0221 03       		.uleb128 0x3
+ 2940 0222 0E       		.uleb128 0xe
+ 2941 0223 3A       		.uleb128 0x3a
+ 2942 0224 0B       		.uleb128 0xb
+ 2943 0225 3B       		.uleb128 0x3b
+ 2944 0226 05       		.uleb128 0x5
+ 2945 0227 00       		.byte	0
+ 2946 0228 00       		.byte	0
+ 2947 0229 27       		.uleb128 0x27
+ 2948 022a 2E       		.uleb128 0x2e
+ 2949 022b 00       		.byte	0
+ 2950 022c 3F       		.uleb128 0x3f
+ 2951 022d 19       		.uleb128 0x19
+ 2952 022e 3C       		.uleb128 0x3c
+ 2953 022f 19       		.uleb128 0x19
+ 2954 0230 6E       		.uleb128 0x6e
+ 2955 0231 0E       		.uleb128 0xe
+ 2956 0232 03       		.uleb128 0x3
+ 2957 0233 0E       		.uleb128 0xe
+ 2958 0234 3A       		.uleb128 0x3a
+ 2959 0235 0B       		.uleb128 0xb
+ 2960 0236 3B       		.uleb128 0x3b
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 59
+
+
+ 2961 0237 0B       		.uleb128 0xb
+ 2962 0238 00       		.byte	0
+ 2963 0239 00       		.byte	0
+ 2964 023a 00       		.byte	0
+ 2965              		.section	.debug_loc,"",%progbits
+ 2966              	.Ldebug_loc0:
+ 2967              	.LLST0:
+ 2968 0000 00000000 		.4byte	.LVL0
+ 2969 0004 24000000 		.4byte	.LVL1
+ 2970 0008 0100     		.2byte	0x1
+ 2971 000a 50       		.byte	0x50
+ 2972 000b 24000000 		.4byte	.LVL1
+ 2973 000f 27000000 		.4byte	.LVL2-1
+ 2974 0013 0300     		.2byte	0x3
+ 2975 0015 71       		.byte	0x71
+ 2976 0016 7D       		.sleb128 -3
+ 2977 0017 9F       		.byte	0x9f
+ 2978 0018 27000000 		.4byte	.LVL2-1
+ 2979 001c 34000000 		.4byte	.LVL4
+ 2980 0020 0400     		.2byte	0x4
+ 2981 0022 F3       		.byte	0xf3
+ 2982 0023 01       		.uleb128 0x1
+ 2983 0024 50       		.byte	0x50
+ 2984 0025 9F       		.byte	0x9f
+ 2985 0026 34000000 		.4byte	.LVL4
+ 2986 002a 36000000 		.4byte	.LVL5
+ 2987 002e 0100     		.2byte	0x1
+ 2988 0030 50       		.byte	0x50
+ 2989 0031 36000000 		.4byte	.LVL5
+ 2990 0035 3E000000 		.4byte	.LFE34
+ 2991 0039 0400     		.2byte	0x4
+ 2992 003b F3       		.byte	0xf3
+ 2993 003c 01       		.uleb128 0x1
+ 2994 003d 50       		.byte	0x50
+ 2995 003e 9F       		.byte	0x9f
+ 2996 003f 00000000 		.4byte	0
+ 2997 0043 00000000 		.4byte	0
+ 2998              	.LLST1:
+ 2999 0047 16000000 		.4byte	.LVL11
+ 3000 004b 26000000 		.4byte	.LVL12
+ 3001 004f 0100     		.2byte	0x1
+ 3002 0051 53       		.byte	0x53
+ 3003 0052 28000000 		.4byte	.LVL13
+ 3004 0056 34000000 		.4byte	.LVL14
+ 3005 005a 0100     		.2byte	0x1
+ 3006 005c 53       		.byte	0x53
+ 3007 005d 00000000 		.4byte	0
+ 3008 0061 00000000 		.4byte	0
+ 3009              	.LLST2:
+ 3010 0065 36000000 		.4byte	.LVL15
+ 3011 0069 3E000000 		.4byte	.LVL16
+ 3012 006d 0100     		.2byte	0x1
+ 3013 006f 54       		.byte	0x54
+ 3014 0070 00000000 		.4byte	0
+ 3015 0074 00000000 		.4byte	0
+ 3016              	.LLST3:
+ 3017 0078 00000000 		.4byte	.LVL19
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 60
+
+
+ 3018 007c 0B000000 		.4byte	.LVL20-1
+ 3019 0080 0100     		.2byte	0x1
+ 3020 0082 50       		.byte	0x50
+ 3021 0083 0B000000 		.4byte	.LVL20-1
+ 3022 0087 38000000 		.4byte	.LVL23
+ 3023 008b 0100     		.2byte	0x1
+ 3024 008d 54       		.byte	0x54
+ 3025 008e 38000000 		.4byte	.LVL23
+ 3026 0092 3A000000 		.4byte	.LVL24
+ 3027 0096 0100     		.2byte	0x1
+ 3028 0098 50       		.byte	0x50
+ 3029 0099 3A000000 		.4byte	.LVL24
+ 3030 009d 40000000 		.4byte	.LVL25
+ 3031 00a1 0100     		.2byte	0x1
+ 3032 00a3 54       		.byte	0x54
+ 3033 00a4 40000000 		.4byte	.LVL25
+ 3034 00a8 4C000000 		.4byte	.LFE37
+ 3035 00ac 0400     		.2byte	0x4
+ 3036 00ae F3       		.byte	0xf3
+ 3037 00af 01       		.uleb128 0x1
+ 3038 00b0 50       		.byte	0x50
+ 3039 00b1 9F       		.byte	0x9f
+ 3040 00b2 00000000 		.4byte	0
+ 3041 00b6 00000000 		.4byte	0
+ 3042              	.LLST4:
+ 3043 00ba 00000000 		.4byte	.LVL26
+ 3044 00be 02000000 		.4byte	.LVL27
+ 3045 00c2 0100     		.2byte	0x1
+ 3046 00c4 50       		.byte	0x50
+ 3047 00c5 02000000 		.4byte	.LVL27
+ 3048 00c9 6C000000 		.4byte	.LFE41
+ 3049 00cd 0400     		.2byte	0x4
+ 3050 00cf F3       		.byte	0xf3
+ 3051 00d0 01       		.uleb128 0x1
+ 3052 00d1 50       		.byte	0x50
+ 3053 00d2 9F       		.byte	0x9f
+ 3054 00d3 00000000 		.4byte	0
+ 3055 00d7 00000000 		.4byte	0
+ 3056              	.LLST5:
+ 3057 00db 00000000 		.4byte	.LVL28
+ 3058 00df 15000000 		.4byte	.LVL30-1
+ 3059 00e3 0100     		.2byte	0x1
+ 3060 00e5 51       		.byte	0x51
+ 3061 00e6 15000000 		.4byte	.LVL30-1
+ 3062 00ea 80000000 		.4byte	.LVL46
+ 3063 00ee 0100     		.2byte	0x1
+ 3064 00f0 58       		.byte	0x58
+ 3065 00f1 80000000 		.4byte	.LVL46
+ 3066 00f5 88000000 		.4byte	.LFE42
+ 3067 00f9 0400     		.2byte	0x4
+ 3068 00fb F3       		.byte	0xf3
+ 3069 00fc 01       		.uleb128 0x1
+ 3070 00fd 51       		.byte	0x51
+ 3071 00fe 9F       		.byte	0x9f
+ 3072 00ff 00000000 		.4byte	0
+ 3073 0103 00000000 		.4byte	0
+ 3074              	.LLST6:
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 61
+
+
+ 3075 0107 00000000 		.4byte	.LVL28
+ 3076 010b 15000000 		.4byte	.LVL30-1
+ 3077 010f 0100     		.2byte	0x1
+ 3078 0111 52       		.byte	0x52
+ 3079 0112 15000000 		.4byte	.LVL30-1
+ 3080 0116 80000000 		.4byte	.LVL45
+ 3081 011a 0100     		.2byte	0x1
+ 3082 011c 56       		.byte	0x56
+ 3083 011d 80000000 		.4byte	.LVL45
+ 3084 0121 88000000 		.4byte	.LFE42
+ 3085 0125 0400     		.2byte	0x4
+ 3086 0127 F3       		.byte	0xf3
+ 3087 0128 01       		.uleb128 0x1
+ 3088 0129 52       		.byte	0x52
+ 3089 012a 9F       		.byte	0x9f
+ 3090 012b 00000000 		.4byte	0
+ 3091 012f 00000000 		.4byte	0
+ 3092              	.LLST7:
+ 3093 0133 1A000000 		.4byte	.LVL31
+ 3094 0137 48000000 		.4byte	.LVL39
+ 3095 013b 0100     		.2byte	0x1
+ 3096 013d 55       		.byte	0x55
+ 3097 013e 00000000 		.4byte	0
+ 3098 0142 00000000 		.4byte	0
+ 3099              	.LLST8:
+ 3100 0146 24000000 		.4byte	.LVL33
+ 3101 014a 38000000 		.4byte	.LVL37
+ 3102 014e 0100     		.2byte	0x1
+ 3103 0150 54       		.byte	0x54
+ 3104 0151 00000000 		.4byte	0
+ 3105 0155 00000000 		.4byte	0
+ 3106              	.LLST9:
+ 3107 0159 36000000 		.4byte	.LVL36
+ 3108 015d 48000000 		.4byte	.LVL39
+ 3109 0161 0100     		.2byte	0x1
+ 3110 0163 50       		.byte	0x50
+ 3111 0164 00000000 		.4byte	0
+ 3112 0168 00000000 		.4byte	0
+ 3113              	.LLST10:
+ 3114 016c 44000000 		.4byte	.LVL38
+ 3115 0170 48000000 		.4byte	.LVL39
+ 3116 0174 0200     		.2byte	0x2
+ 3117 0176 30       		.byte	0x30
+ 3118 0177 9F       		.byte	0x9f
+ 3119 0178 48000000 		.4byte	.LVL39
+ 3120 017c 76000000 		.4byte	.LVL42
+ 3121 0180 0100     		.2byte	0x1
+ 3122 0182 54       		.byte	0x54
+ 3123 0183 78000000 		.4byte	.LVL43
+ 3124 0187 80000000 		.4byte	.LVL44
+ 3125 018b 0100     		.2byte	0x1
+ 3126 018d 54       		.byte	0x54
+ 3127 018e 00000000 		.4byte	0
+ 3128 0192 00000000 		.4byte	0
+ 3129              	.LLST11:
+ 3130 0196 00000000 		.4byte	.LVL47
+ 3131 019a 0A000000 		.4byte	.LVL49
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 62
+
+
+ 3132 019e 0100     		.2byte	0x1
+ 3133 01a0 50       		.byte	0x50
+ 3134 01a1 0A000000 		.4byte	.LVL49
+ 3135 01a5 0C000000 		.4byte	.LVL50
+ 3136 01a9 0100     		.2byte	0x1
+ 3137 01ab 53       		.byte	0x53
+ 3138 01ac 0C000000 		.4byte	.LVL50
+ 3139 01b0 16000000 		.4byte	.LVL54
+ 3140 01b4 0400     		.2byte	0x4
+ 3141 01b6 F3       		.byte	0xf3
+ 3142 01b7 01       		.uleb128 0x1
+ 3143 01b8 50       		.byte	0x50
+ 3144 01b9 9F       		.byte	0x9f
+ 3145 01ba 16000000 		.4byte	.LVL54
+ 3146 01be 18000000 		.4byte	.LVL55
+ 3147 01c2 0100     		.2byte	0x1
+ 3148 01c4 50       		.byte	0x50
+ 3149 01c5 18000000 		.4byte	.LVL55
+ 3150 01c9 2C000000 		.4byte	.LFE43
+ 3151 01cd 0400     		.2byte	0x4
+ 3152 01cf F3       		.byte	0xf3
+ 3153 01d0 01       		.uleb128 0x1
+ 3154 01d1 50       		.byte	0x50
+ 3155 01d2 9F       		.byte	0x9f
+ 3156 01d3 00000000 		.4byte	0
+ 3157 01d7 00000000 		.4byte	0
+ 3158              	.LLST12:
+ 3159 01db 04000000 		.4byte	.LVL48
+ 3160 01df 0C000000 		.4byte	.LVL50
+ 3161 01e3 0200     		.2byte	0x2
+ 3162 01e5 30       		.byte	0x30
+ 3163 01e6 9F       		.byte	0x9f
+ 3164 01e7 0C000000 		.4byte	.LVL50
+ 3165 01eb 0E000000 		.4byte	.LVL51
+ 3166 01ef 0100     		.2byte	0x1
+ 3167 01f1 50       		.byte	0x50
+ 3168 01f2 12000000 		.4byte	.LVL52
+ 3169 01f6 16000000 		.4byte	.LVL54
+ 3170 01fa 0100     		.2byte	0x1
+ 3171 01fc 50       		.byte	0x50
+ 3172 01fd 16000000 		.4byte	.LVL54
+ 3173 0201 18000000 		.4byte	.LVL55
+ 3174 0205 0200     		.2byte	0x2
+ 3175 0207 30       		.byte	0x30
+ 3176 0208 9F       		.byte	0x9f
+ 3177 0209 18000000 		.4byte	.LVL55
+ 3178 020d 22000000 		.4byte	.LVL57
+ 3179 0211 0100     		.2byte	0x1
+ 3180 0213 50       		.byte	0x50
+ 3181 0214 24000000 		.4byte	.LVL58
+ 3182 0218 2C000000 		.4byte	.LFE43
+ 3183 021c 0100     		.2byte	0x1
+ 3184 021e 50       		.byte	0x50
+ 3185 021f 00000000 		.4byte	0
+ 3186 0223 00000000 		.4byte	0
+ 3187              	.LLST13:
+ 3188 0227 0C000000 		.4byte	.LVL50
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 63
+
+
+ 3189 022b 16000000 		.4byte	.LVL54
+ 3190 022f 0100     		.2byte	0x1
+ 3191 0231 53       		.byte	0x53
+ 3192 0232 18000000 		.4byte	.LVL55
+ 3193 0236 1E000000 		.4byte	.LVL56
+ 3194 023a 0100     		.2byte	0x1
+ 3195 023c 53       		.byte	0x53
+ 3196 023d 00000000 		.4byte	0
+ 3197 0241 00000000 		.4byte	0
+ 3198              	.LLST14:
+ 3199 0245 1E000000 		.4byte	.LVL56
+ 3200 0249 2A000000 		.4byte	.LVL60
+ 3201 024d 0100     		.2byte	0x1
+ 3202 024f 53       		.byte	0x53
+ 3203 0250 00000000 		.4byte	0
+ 3204 0254 00000000 		.4byte	0
+ 3205              	.LLST15:
+ 3206 0258 00000000 		.4byte	.LVL61
+ 3207 025c 0E000000 		.4byte	.LVL63
+ 3208 0260 0100     		.2byte	0x1
+ 3209 0262 50       		.byte	0x50
+ 3210 0263 0E000000 		.4byte	.LVL63
+ 3211 0267 6E000000 		.4byte	.LVL73
+ 3212 026b 0100     		.2byte	0x1
+ 3213 026d 54       		.byte	0x54
+ 3214 026e 6E000000 		.4byte	.LVL73
+ 3215 0272 A0000000 		.4byte	.LFE44
+ 3216 0276 0400     		.2byte	0x4
+ 3217 0278 F3       		.byte	0xf3
+ 3218 0279 01       		.uleb128 0x1
+ 3219 027a 50       		.byte	0x50
+ 3220 027b 9F       		.byte	0x9f
+ 3221 027c 00000000 		.4byte	0
+ 3222 0280 00000000 		.4byte	0
+ 3223              	.LLST16:
+ 3224 0284 08000000 		.4byte	.LVL62
+ 3225 0288 3C000000 		.4byte	.LVL68
+ 3226 028c 0100     		.2byte	0x1
+ 3227 028e 55       		.byte	0x55
+ 3228 028f 58000000 		.4byte	.LVL71
+ 3229 0293 78000000 		.4byte	.LVL74
+ 3230 0297 0100     		.2byte	0x1
+ 3231 0299 55       		.byte	0x55
+ 3232 029a 00000000 		.4byte	0
+ 3233 029e 00000000 		.4byte	0
+ 3234              		.section	.debug_aranges,"",%progbits
+ 3235 0000 6C000000 		.4byte	0x6c
+ 3236 0004 0200     		.2byte	0x2
+ 3237 0006 00000000 		.4byte	.Ldebug_info0
+ 3238 000a 04       		.byte	0x4
+ 3239 000b 00       		.byte	0
+ 3240 000c 0000     		.2byte	0
+ 3241 000e 0000     		.2byte	0
+ 3242 0010 00000000 		.4byte	.LFB34
+ 3243 0014 3E000000 		.4byte	.LFE34-.LFB34
+ 3244 0018 00000000 		.4byte	.LFB35
+ 3245 001c 64000000 		.4byte	.LFE35-.LFB35
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 64
+
+
+ 3246 0020 00000000 		.4byte	.LFB38
+ 3247 0024 48000000 		.4byte	.LFE38-.LFB38
+ 3248 0028 00000000 		.4byte	.LFB39
+ 3249 002c 50000000 		.4byte	.LFE39-.LFB39
+ 3250 0030 00000000 		.4byte	.LFB36
+ 3251 0034 34010000 		.4byte	.LFE36-.LFB36
+ 3252 0038 00000000 		.4byte	.LFB40
+ 3253 003c 28000000 		.4byte	.LFE40-.LFB40
+ 3254 0040 00000000 		.4byte	.LFB37
+ 3255 0044 4C000000 		.4byte	.LFE37-.LFB37
+ 3256 0048 00000000 		.4byte	.LFB41
+ 3257 004c 6C000000 		.4byte	.LFE41-.LFB41
+ 3258 0050 00000000 		.4byte	.LFB42
+ 3259 0054 88000000 		.4byte	.LFE42-.LFB42
+ 3260 0058 00000000 		.4byte	.LFB43
+ 3261 005c 2C000000 		.4byte	.LFE43-.LFB43
+ 3262 0060 00000000 		.4byte	.LFB44
+ 3263 0064 A0000000 		.4byte	.LFE44-.LFB44
+ 3264 0068 00000000 		.4byte	0
+ 3265 006c 00000000 		.4byte	0
+ 3266              		.section	.debug_ranges,"",%progbits
+ 3267              	.Ldebug_ranges0:
+ 3268 0000 0C000000 		.4byte	.LBB3
+ 3269 0004 16000000 		.4byte	.LBE3
+ 3270 0008 18000000 		.4byte	.LBB4
+ 3271 000c 1E000000 		.4byte	.LBE4
+ 3272 0010 00000000 		.4byte	0
+ 3273 0014 00000000 		.4byte	0
+ 3274 0018 00000000 		.4byte	.LFB34
+ 3275 001c 3E000000 		.4byte	.LFE34
+ 3276 0020 00000000 		.4byte	.LFB35
+ 3277 0024 64000000 		.4byte	.LFE35
+ 3278 0028 00000000 		.4byte	.LFB38
+ 3279 002c 48000000 		.4byte	.LFE38
+ 3280 0030 00000000 		.4byte	.LFB39
+ 3281 0034 50000000 		.4byte	.LFE39
+ 3282 0038 00000000 		.4byte	.LFB36
+ 3283 003c 34010000 		.4byte	.LFE36
+ 3284 0040 00000000 		.4byte	.LFB40
+ 3285 0044 28000000 		.4byte	.LFE40
+ 3286 0048 00000000 		.4byte	.LFB37
+ 3287 004c 4C000000 		.4byte	.LFE37
+ 3288 0050 00000000 		.4byte	.LFB41
+ 3289 0054 6C000000 		.4byte	.LFE41
+ 3290 0058 00000000 		.4byte	.LFB42
+ 3291 005c 88000000 		.4byte	.LFE42
+ 3292 0060 00000000 		.4byte	.LFB43
+ 3293 0064 2C000000 		.4byte	.LFE43
+ 3294 0068 00000000 		.4byte	.LFB44
+ 3295 006c A0000000 		.4byte	.LFE44
+ 3296 0070 00000000 		.4byte	0
+ 3297 0074 00000000 		.4byte	0
+ 3298              		.section	.debug_line,"",%progbits
+ 3299              	.Ldebug_line0:
+ 3300 0000 50030000 		.section	.debug_str,"MS",%progbits,1
+ 3300      02008C01 
+ 3300      00000201 
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 65
+
+
+ 3300      FB0E0D00 
+ 3300      01010101 
+ 3301              	.LASF81:
+ 3302 0000 75617274 		.ascii	"uart_rx\000"
+ 3302      5F727800 
+ 3303              	.LASF35:
+ 3304 0008 72786D61 		.ascii	"rxmailbox\000"
+ 3304      696C626F 
+ 3304      7800
+ 3305              	.LASF63:
+ 3306 0012 72657375 		.ascii	"result\000"
+ 3306      6C7400
+ 3307              	.LASF9:
+ 3308 0019 5F5F7569 		.ascii	"__uint32_t\000"
+ 3308      6E743332 
+ 3308      5F7400
+ 3309              	.LASF32:
+ 3310 0024 43414E5F 		.ascii	"CAN_DATA_BYTES\000"
+ 3310      44415441 
+ 3310      5F425954 
+ 3310      455300
+ 3311              	.LASF4:
+ 3312 0033 73686F72 		.ascii	"short int\000"
+ 3312      7420696E 
+ 3312      7400
+ 3313              	.LASF69:
+ 3314 003d 6D657373 		.ascii	"messageReadFlag\000"
+ 3314      61676552 
+ 3314      65616446 
+ 3314      6C616700 
+ 3315              	.LASF29:
+ 3316 004d 73697A65 		.ascii	"sizetype\000"
+ 3316      74797065 
+ 3316      00
+ 3317              	.LASF56:
+ 3318 0056 72656365 		.ascii	"receivedPacket\000"
+ 3318      69766564 
+ 3318      5061636B 
+ 3318      657400
+ 3319              	.LASF73:
+ 3320 0065 6C617465 		.ascii	"latestMessageFull\000"
+ 3320      73744D65 
+ 3320      73736167 
+ 3320      6546756C 
+ 3320      6C00
+ 3321              	.LASF24:
+ 3322 0077 63686172 		.ascii	"char8\000"
+ 3322      3800
+ 3323              	.LASF47:
+ 3324 007d 50536F43 		.ascii	"PSoCMessage\000"
+ 3324      4D657373 
+ 3324      61676500 
+ 3325              	.LASF92:
+ 3326 0089 496E6974 		.ascii	"InitCAN\000"
+ 3326      43414E00 
+ 3327              	.LASF49:
+ 3328 0091 73746174 		.ascii	"statusReg\000"
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 66
+
+
+ 3328      75735265 
+ 3328      6700
+ 3329              	.LASF41:
+ 3330 009b 72786461 		.ascii	"rxdata\000"
+ 3330      746100
+ 3331              	.LASF5:
+ 3332 00a2 5F5F7569 		.ascii	"__uint16_t\000"
+ 3332      6E743136 
+ 3332      5F7400
+ 3333              	.LASF95:
+ 3334 00ad 6D656D63 		.ascii	"memcpy\000"
+ 3334      707900
+ 3335              	.LASF83:
+ 3336 00b4 43414E5F 		.ascii	"CAN_Start\000"
+ 3336      53746172 
+ 3336      7400
+ 3337              	.LASF60:
+ 3338 00be 6465636F 		.ascii	"decodeFromBytes\000"
+ 3338      64654672 
+ 3338      6F6D4279 
+ 3338      74657300 
+ 3339              	.LASF89:
+ 3340 00ce 474E5520 		.ascii	"GNU C11 5.4.1 20160609 (release) [ARM/embedded-5-br"
+ 3340      43313120 
+ 3340      352E342E 
+ 3340      31203230 
+ 3340      31363036 
+ 3341 0101 616E6368 		.ascii	"anch revision 237715] -mcpu=cortex-m0 -mthumb -g -O"
+ 3341      20726576 
+ 3341      6973696F 
+ 3341      6E203233 
+ 3341      37373135 
+ 3342 0134 67202D66 		.ascii	"g -ffunction-sections -ffat-lto-objects\000"
+ 3342      66756E63 
+ 3342      74696F6E 
+ 3342      2D736563 
+ 3342      74696F6E 
+ 3343              	.LASF14:
+ 3344 015c 75696E74 		.ascii	"uint8_t\000"
+ 3344      385F7400 
+ 3345              	.LASF88:
+ 3346 0164 55415254 		.ascii	"UART_UartPutString\000"
+ 3346      5F556172 
+ 3346      74507574 
+ 3346      53747269 
+ 3346      6E6700
+ 3347              	.LASF72:
+ 3348 0177 6C617465 		.ascii	"latestMessageTail\000"
+ 3348      73744D65 
+ 3348      73736167 
+ 3348      65546169 
+ 3348      6C00
+ 3349              	.LASF40:
+ 3350 0189 72786964 		.ascii	"rxid\000"
+ 3350      00
+ 3351              	.LASF65:
+ 3352 018e 7061636B 		.ascii	"packet\000"
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 67
+
+
+ 3352      657400
+ 3353              	.LASF58:
+ 3354 0195 70617273 		.ascii	"parseLine\000"
+ 3354      654C696E 
+ 3354      6500
+ 3355              	.LASF38:
+ 3356 019f 72786163 		.ascii	"rxacr\000"
+ 3356      7200
+ 3357              	.LASF0:
+ 3358 01a5 7369676E 		.ascii	"signed char\000"
+ 3358      65642063 
+ 3358      68617200 
+ 3359              	.LASF22:
+ 3360 01b1 666C6F61 		.ascii	"float\000"
+ 3360      7400
+ 3361              	.LASF11:
+ 3362 01b7 6C6F6E67 		.ascii	"long long int\000"
+ 3362      206C6F6E 
+ 3362      6720696E 
+ 3362      7400
+ 3363              	.LASF33:
+ 3364 01c5 43414E5F 		.ascii	"CAN_REG_32\000"
+ 3364      5245475F 
+ 3364      333200
+ 3365              	.LASF46:
+ 3366 01d0 43414E50 		.ascii	"CANPacket\000"
+ 3366      61636B65 
+ 3366      7400
+ 3367              	.LASF54:
+ 3368 01da 506F6C6C 		.ascii	"PollAndReceiveCANPacket\000"
+ 3368      416E6452 
+ 3368      65636569 
+ 3368      76654341 
+ 3368      4E506163 
+ 3369              	.LASF8:
+ 3370 01f2 6C6F6E67 		.ascii	"long int\000"
+ 3370      20696E74 
+ 3370      00
+ 3371              	.LASF50:
+ 3372 01fb 6D61696C 		.ascii	"mailbox\000"
+ 3372      626F7800 
+ 3373              	.LASF2:
+ 3374 0203 5F5F7569 		.ascii	"__uint8_t\000"
+ 3374      6E74385F 
+ 3374      7400
+ 3375              	.LASF59:
+ 3376 020d 6C696E65 		.ascii	"line\000"
+ 3376      00
+ 3377              	.LASF1:
+ 3378 0212 756E7369 		.ascii	"unsigned char\000"
+ 3378      676E6564 
+ 3378      20636861 
+ 3378      7200
+ 3379              	.LASF77:
+ 3380 0220 6D657373 		.ascii	"messagePWM\000"
+ 3380      61676550 
+ 3380      574D00
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 68
+
+
+ 3381              	.LASF28:
+ 3382 022b 6C6F6E67 		.ascii	"long double\000"
+ 3382      20646F75 
+ 3382      626C6500 
+ 3383              	.LASF42:
+ 3384 0237 7278616D 		.ascii	"rxamrd\000"
+ 3384      726400
+ 3385              	.LASF74:
+ 3386 023e 64657669 		.ascii	"deviceAddress\000"
+ 3386      63654164 
+ 3386      64726573 
+ 3386      7300
+ 3387              	.LASF87:
+ 3388 024c 73707269 		.ascii	"sprintf\000"
+ 3388      6E746600 
+ 3389              	.LASF67:
+ 3390 0254 7061636B 		.ascii	"packetID\000"
+ 3390      65744944 
+ 3390      00
+ 3391              	.LASF70:
+ 3392 025d 6C617465 		.ascii	"latestMessage\000"
+ 3392      73744D65 
+ 3392      73736167 
+ 3392      6500
+ 3393              	.LASF12:
+ 3394 026b 6C6F6E67 		.ascii	"long long unsigned int\000"
+ 3394      206C6F6E 
+ 3394      6720756E 
+ 3394      7369676E 
+ 3394      65642069 
+ 3395              	.LASF18:
+ 3396 0282 75696E74 		.ascii	"uint32_t\000"
+ 3396      33325F74 
+ 3396      00
+ 3397              	.LASF53:
+ 3398 028b 53656E64 		.ascii	"SendCANPacket\000"
+ 3398      43414E50 
+ 3398      61636B65 
+ 3398      7400
+ 3399              	.LASF13:
+ 3400 0299 756E7369 		.ascii	"unsigned int\000"
+ 3400      676E6564 
+ 3400      20696E74 
+ 3400      00
+ 3401              	.LASF16:
+ 3402 02a6 75696E74 		.ascii	"uint16_t\000"
+ 3402      31365F74 
+ 3402      00
+ 3403              	.LASF30:
+ 3404 02af 43414E5F 		.ascii	"CAN_DATA_BYTES_MSG\000"
+ 3404      44415441 
+ 3404      5F425954 
+ 3404      45535F4D 
+ 3404      534700
+ 3405              	.LASF78:
+ 3406 02c2 72656365 		.ascii	"receiveMailboxNumber\000"
+ 3406      6976654D 
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 69
+
+
+ 3406      61696C62 
+ 3406      6F784E75 
+ 3406      6D626572 
+ 3407              	.LASF79:
+ 3408 02d7 43414E5F 		.ascii	"CAN_time_LED\000"
+ 3408      74696D65 
+ 3408      5F4C4544 
+ 3408      00
+ 3409              	.LASF91:
+ 3410 02e4 433A5C55 		.ascii	"C:\\Users\\casey\\Desktop\\Robotics Stuff\\CAN_Test"
+ 3410      73657273 
+ 3410      5C636173 
+ 3410      65795C44 
+ 3410      65736B74 
+ 3411 0312 65725F42 		.ascii	"er_Board\\CAN_Board.cydsn\000"
+ 3411      6F617264 
+ 3411      5C43414E 
+ 3411      5F426F61 
+ 3411      72642E63 
+ 3412              	.LASF27:
+ 3413 032b 72656733 		.ascii	"reg32\000"
+ 3413      3200
+ 3414              	.LASF6:
+ 3415 0331 73686F72 		.ascii	"short unsigned int\000"
+ 3415      7420756E 
+ 3415      7369676E 
+ 3415      65642069 
+ 3415      6E7400
+ 3416              	.LASF94:
+ 3417 0344 636F756E 		.ascii	"countAddFIFO\000"
+ 3417      74416464 
+ 3417      4649464F 
+ 3417      00
+ 3418              	.LASF43:
+ 3419 0351 72786163 		.ascii	"rxacrd\000"
+ 3419      726400
+ 3420              	.LASF25:
+ 3421 0358 63686172 		.ascii	"char\000"
+ 3421      00
+ 3422              	.LASF44:
+ 3423 035d 43414E5F 		.ascii	"CAN_RX_STRUCT\000"
+ 3423      52585F53 
+ 3423      54525543 
+ 3423      5400
+ 3424              	.LASF76:
+ 3425 036b 72784D61 		.ascii	"rxMailbox\000"
+ 3425      696C626F 
+ 3425      7800
+ 3426              	.LASF84:
+ 3427 0375 43414E5F 		.ascii	"CAN_RxBufConfig\000"
+ 3427      52784275 
+ 3427      66436F6E 
+ 3427      66696700 
+ 3428              	.LASF68:
+ 3429 0385 6D657373 		.ascii	"messagePresentFlag\000"
+ 3429      61676550 
+ 3429      72657365 
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 70
+
+
+ 3429      6E74466C 
+ 3429      616700
+ 3430              	.LASF17:
+ 3431 0398 696E7433 		.ascii	"int32_t\000"
+ 3431      325F7400 
+ 3432              	.LASF36:
+ 3433 03a0 7278636D 		.ascii	"rxcmd\000"
+ 3433      6400
+ 3434              	.LASF15:
+ 3435 03a6 696E7431 		.ascii	"int16_t\000"
+ 3435      365F7400 
+ 3436              	.LASF19:
+ 3437 03ae 75696E74 		.ascii	"uint8\000"
+ 3437      3800
+ 3438              	.LASF52:
+ 3439 03b4 636F756E 		.ascii	"countRemoveFIFO\000"
+ 3439      7452656D 
+ 3439      6F766546 
+ 3439      49464F00 
+ 3440              	.LASF48:
+ 3441 03c4 50536F43 		.ascii	"PSoCData\000"
+ 3441      44617461 
+ 3441      00
+ 3442              	.LASF45:
+ 3443 03cd 64617461 		.ascii	"data\000"
+ 3443      00
+ 3444              	.LASF20:
+ 3445 03d2 75696E74 		.ascii	"uint16\000"
+ 3445      313600
+ 3446              	.LASF62:
+ 3447 03d9 6C73625F 		.ascii	"lsb_index\000"
+ 3447      696E6465 
+ 3447      7800
+ 3448              	.LASF21:
+ 3449 03e3 75696E74 		.ascii	"uint32\000"
+ 3449      333200
+ 3450              	.LASF26:
+ 3451 03ea 72656738 		.ascii	"reg8\000"
+ 3451      00
+ 3452              	.LASF10:
+ 3453 03ef 6C6F6E67 		.ascii	"long unsigned int\000"
+ 3453      20756E73 
+ 3453      69676E65 
+ 3453      6420696E 
+ 3453      7400
+ 3454              	.LASF34:
+ 3455 0401 43414E5F 		.ascii	"CAN_TX_MSG\000"
+ 3455      54585F4D 
+ 3455      534700
+ 3456              	.LASF82:
+ 3457 040c 43414E5F 		.ascii	"CAN_SendMsg\000"
+ 3457      53656E64 
+ 3457      4D736700 
+ 3458              	.LASF61:
+ 3459 0418 6D73625F 		.ascii	"msb_index\000"
+ 3459      696E6465 
+ 3459      7800
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 71
+
+
+ 3460              	.LASF64:
+ 3461 0422 7072696E 		.ascii	"printPacket\000"
+ 3461      74506163 
+ 3461      6B657400 
+ 3462              	.LASF85:
+ 3463 042e 43414E5F 		.ascii	"CAN_GlobalIntEnable\000"
+ 3463      476C6F62 
+ 3463      616C496E 
+ 3463      74456E61 
+ 3463      626C6500 
+ 3464              	.LASF57:
+ 3465 0442 73697A65 		.ascii	"size\000"
+ 3465      00
+ 3466              	.LASF31:
+ 3467 0447 62797465 		.ascii	"byte\000"
+ 3467      00
+ 3468              	.LASF80:
+ 3469 044c 75617274 		.ascii	"uart_tx\000"
+ 3469      5F747800 
+ 3470              	.LASF66:
+ 3471 0454 696E666F 		.ascii	"info\000"
+ 3471      00
+ 3472              	.LASF7:
+ 3473 0459 5F5F696E 		.ascii	"__int32_t\000"
+ 3473      7433325F 
+ 3473      7400
+ 3474              	.LASF3:
+ 3475 0463 5F5F696E 		.ascii	"__int16_t\000"
+ 3475      7431365F 
+ 3475      7400
+ 3476              	.LASF86:
+ 3477 046d 4379496E 		.ascii	"CyIntSetVector\000"
+ 3477      74536574 
+ 3477      56656374 
+ 3477      6F7200
+ 3478              	.LASF93:
+ 3479 047c 4649464F 		.ascii	"FIFOSize\000"
+ 3479      53697A65 
+ 3479      00
+ 3480              	.LASF23:
+ 3481 0485 646F7562 		.ascii	"double\000"
+ 3481      6C6500
+ 3482              	.LASF90:
+ 3483 048c 55415254 		.ascii	"UART_Interface.c\000"
+ 3483      5F496E74 
+ 3483      65726661 
+ 3483      63652E63 
+ 3483      00
+ 3484              	.LASF75:
+ 3485 049d 64657669 		.ascii	"deviceGroup\000"
+ 3485      63654772 
+ 3485      6F757000 
+ 3486              	.LASF55:
+ 3487 04a9 7061636B 		.ascii	"packetToSend\000"
+ 3487      6574546F 
+ 3487      53656E64 
+ 3487      00
+ARM GAS  C:\Users\casey\AppData\Local\Temp\cc41co3d.s 			page 72
+
+
+ 3488              	.LASF51:
+ 3489 04b6 43414E5F 		.ascii	"CAN_FLAG_ISR\000"
+ 3489      464C4147 
+ 3489      5F495352 
+ 3489      00
+ 3490              	.LASF37:
+ 3491 04c3 7278616D 		.ascii	"rxamr\000"
+ 3491      7200
+ 3492              	.LASF71:
+ 3493 04c9 6C617465 		.ascii	"latestMessageHead\000"
+ 3493      73744D65 
+ 3493      73736167 
+ 3493      65486561 
+ 3493      6400
+ 3494              	.LASF39:
+ 3495 04db 43414E5F 		.ascii	"CAN_RX_CFG\000"
+ 3495      52585F43 
+ 3495      464700
+ 3496              		.ident	"GCC: (GNU Tools for ARM Embedded Processors) 5.4.1 20160609 (release) [ARM/embedded-5-bran
