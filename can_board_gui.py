@@ -105,6 +105,9 @@ refresh_button = Button(text='Refresh',font=med_font).set_callback(refresh_devic
 man.add(device_menu, (10, 10))
 man.add(refresh_button, (520, 10))
 
+last_rx = ''
+repeat_count = 0
+
 refresh_devices(0)
 while True:
     events = pygame.event.get()
@@ -117,7 +120,17 @@ while True:
     root.blit(christian,(winW-140,10))
     if ser:
         if ser.in_waiting:
-            print(ser.readline().decode('utf-8').strip())
+            try:
+                s = ser.readline().decode('utf-8').strip()
+                if s[:9] == last_rx[:9]:
+                    repeat_count += 1
+                    print('\r'+s, end = f' ({repeat_count})')
+                else:
+                    repeat_count = 0
+                    print(f'\n{s}', end='')
+                last_rx = s
+            except UnicodeDecodeError:
+                pass
     man.update(pygame.mouse.get_pos(), events, root)
 
     pygame.display.update()
