@@ -12,7 +12,7 @@
 #include "project.h"
 #include "cytypes.h"
 #include "cyfitter.h"
-#include "CAN_Stuff.c"
+#include "CAN_Stuff.h"
 
 char8 uart_tx[100];
 char8 uart_rx[100];

@@ -122,12 +122,19 @@ while True:
         if ser.in_waiting:
             try:
                 s = ser.readline().decode('utf-8').strip()
-                if s[:9] == last_rx[:9]:
-                    repeat_count += 1
-                    print('\r'+s, end = f' ({repeat_count})')
-                else:
-                    repeat_count = 0
-                    print(f'\n{s}', end='')
+                print(s)
+                # if (len(s) > 7):
+                #     if s[7:9] == '00':# or s[7:9] == '06' or s[7:9] == '07':
+                #         print(f'Mode: {s}')
+                #     elif s[7:9] == '04':
+                #         print(f'Pos: {s}')
+
+                # if s[:9] == last_rx[:9]:
+                #     repeat_count += 1
+                #     print('\r'+s, end = f' ({repeat_count})')
+                # else:
+                #     repeat_count = 0
+                #     print(f'\n{s}', end='')
                 last_rx = s
             except UnicodeDecodeError:
                 pass
