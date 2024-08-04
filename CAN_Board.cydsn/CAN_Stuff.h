@@ -29,13 +29,20 @@
 #define ERROR_GENERIC_ERROR     0x01
 #define ERROR_NULL_POINTER      0x02 
 
-typedef struct
-{
+typedef struct {
     uint16_t id;
     uint8_t dlc;
     uint8_t data[8];
 } CANPacket;
 
 int SendCANPacket(CANPacket *packetToSend);
+
+void InitCAN();
+int SendCANPacket(CANPacket *packetToSend);
+int PollAndReceiveCANPacket(CANPacket *receivedPacket);
+uint8_t FIFOSize();
+void countAddFIFO();
+void countRemoveFIFO();
+void sprintCANPacket(CANPacket* packet, char* buffer);
 
 /* [] END OF FILE */

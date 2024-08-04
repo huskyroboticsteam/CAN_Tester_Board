@@ -11,6 +11,7 @@
 */
 
 #include "CAN_Stuff.h"
+#include <stdio.h>
 
 volatile uint8_t messagePresentFlag = 0xFF;
 volatile uint8_t messageReadFlag = 0x0;
@@ -32,14 +33,7 @@ CAN_RX_CFG rxMailbox;
 
 int mailbox = 0;
 
-volatile CANPacket packet;
-
-CY_ISR_PROTO(ISR_CAN);
-
-CAN_TX_MSG messagePWM;
 volatile uint8 receiveMailboxNumber = 0xFFu;
-
-volatile uint16 CAN_time_LED = 0;
 
 int SendCANPacket(CANPacket *packetToSend)
 {
@@ -64,33 +58,14 @@ int SendCANPacket(CANPacket *packetToSend)
 }
 
 void InitCAN() {
+    CAN_Start(); // must name CAN Top Design block as "CAN"
     
-    CAN_Start();//must name CAN Top Design block as "CAN"
-    
-    //TODO: I'm sure there's a better way of doing this part
-    // deviceGroup = deviceGroupInput & 0xF; // 4bits of ID
-    // deviceAddress = deviceAddressInput & (0x3f);//6bits of ID
-    
-    //sets up inidvidual recieve mailbox (3rd priority mailbox)
+    // sets up mailbox to recieve EVERYTHING
     rxMailbox.rxmailbox = 0;
-    // rxMailbox.rxacr = ((deviceGroup << 6)|(deviceAddress)) << 21;  // first 11 bits are the CAN ID that is not extended
-    rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
-    rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_0);//need to know what this is
+    rxMailbox.rxacr = 0x00000000;
+    rxMailbox.rxamr = 0xFFFFFFFF;
+    rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_0);
     CAN_RxBufConfig(&rxMailbox);
-    
-    //setup broadcast recieve mailbox (1st priority mailbox)
-    rxMailbox.rxmailbox = 1;
-    rxMailbox.rxacr = ((0x0 << 6)|(0x0)) << 21; //0x20F<<21; // first 11 bits are the CAN ID that is not extended
-    rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
-    rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_1);//need to know what this is
-    CAN_RxBufConfig(&rxMailbox);
-    
-    //setup group broadcast recieve mailbox (2nd priority mailbox)
-    rxMailbox.rxmailbox = 2;
-    // rxMailbox.rxacr = ((deviceGroup << 6)|(0x3F)) << 21; //0x20F<<21; // first 11 bits are the CAN ID that is not extended
-    rxMailbox.rxamr = 0x801FFFFF; // what bits to ignore
-    rxMailbox.rxcmd = CAN_RX_CMD_REG(CAN_RX_MAILBOX_2);//need to know what this is
-    //CAN_RxBufConfig(&rxMailbox);
     
     CAN_GlobalIntEnable();
     CyIntSetVector(CAN_ISR_NUMBER, CAN_FLAG_ISR);
@@ -98,24 +73,9 @@ void InitCAN() {
 
 CY_ISR(CAN_FLAG_ISR)
 {
-    CAN_time_LED = 1000;
-    //*(reg32*)0x402F0000 = CAN_RX_MESSAGE_MASK & CAN_SST_FAILURE_MASK & CAN_CRC_ERROR_MASK; //Clear Receive Message flag
     CAN_INT_SR_REG = CAN_RX_MESSAGE_MASK;
-    uint32_t statusReg = (uint32_t) CAN_BUF_SR_REG; //Hardcoded for speed, translation from reg
-    uint8_t mailbox;
-    
-    if(statusReg & 0b1) { // mailbox0 is full (individual)
-        mailbox = CAN_RX_MAILBOX_0;
-    }
-    else if(statusReg & 0b10) { // mailbox1 is full (broadcast)
-        mailbox = CAN_RX_MAILBOX_1;
-    }    
-    else if(statusReg & 0b100) { // mailbox2 is full (group broadcast)
-        mailbox = CAN_RX_MAILBOX_2;
-    } 
-    else if(statusReg & 0b1000) { // mailbox3 is full currently recieves anything enable in top design 
-        mailbox = CAN_RX_MAILBOX_3;
-    }
+    // uint32_t statusReg = (uint32_t) CAN_BUF_SR_REG; //Hardcoded for speed, translation from reg
+    uint8_t mailbox = CAN_RX_MAILBOX_0;
     
     latestMessage[latestMessageTail].id = CAN_GET_RX_ID(mailbox);
     latestMessage[latestMessageTail].dlc = CAN_GET_DLC(mailbox);
@@ -187,6 +147,18 @@ void countRemoveFIFO(){
             latestMessageHead = 0;
         }
     }
+}
+
+void sprintCANPacket(CANPacket* packet, char* buffer) {
+    uint8 pri = (packet->id & 0x400) >> 10;
+    uint8 dg = (packet->id & 0x3C0) >> 6;
+    uint8 sn = (packet->id & 0x03F) >> 0;
+
+    int len = sprintf(buffer, "%01X %02X %02X ", pri, dg, sn);
+    for(int i = 0; i < packet->dlc; i++)
+        len += sprintf(buffer+len," %02X", packet->data[i]);
+
+    sprintf(buffer+len,"\r\n");
 }
 
 /* [] END OF FILE */

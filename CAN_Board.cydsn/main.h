@@ -12,21 +12,16 @@
 
 #include "project.h"
 
-typedef struct {
-    uint16_t id;
-    uint8_t dlc;
-    uint8_t data[8];
-} CANPacket;
+#define ON  0
+#define OFF 1
 
-void InitCAN();
-int SendCANPacket(CANPacket *packetToSend);
-int PollAndReceiveCANPacket(CANPacket *receivedPacket);
-uint8_t FIFOSize();
-void countAddFIFO();
-void countRemoveFIFO();
-uint8 s2x(char8 c);
-void parseLine(CANPacket* p, char8 line[], int length);
-uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]);
-void printPacket(CANPacket* packet);
+#define TX_DATA_SIZE (100u)
+
+#define Print(message) DBG_UART_UartPutString(message)
+#define PrintChar(character) DBG_UART_UartPutChar(character)
+#define PrintInt(integer) DBG_UART_UartPutString(itoa(integer, txData, 10))
+#define PrintIntBin(integer) DBG_UART_UartPutString(itoa(integer, txData, 2))
+
+int main(void);
 
 /* [] END OF FILE */
