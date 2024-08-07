@@ -1,3 +1,3 @@
 # CAN_Tester_Board
 
-needed to pip install: pyserial, pygame, and guipy
+needed to pip install: pyserial (for serial), pygame, and guipylib (for guipy)
