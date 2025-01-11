@@ -57,6 +57,26 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define ERR1_Pin GPIO_PIN_0
+#define ERR1_GPIO_Port GPIOA
+#define DBG1_Pin GPIO_PIN_1
+#define DBG1_GPIO_Port GPIOA
+#define CAN1_Pin GPIO_PIN_2
+#define CAN1_GPIO_Port GPIOA
+#define ERR2_Pin GPIO_PIN_3
+#define ERR2_GPIO_Port GPIOA
+#define DBG2_Pin GPIO_PIN_4
+#define DBG2_GPIO_Port GPIOA
+#define CAN2_Pin GPIO_PIN_5
+#define CAN2_GPIO_Port GPIOA
+#define UART_TX_Pin GPIO_PIN_9
+#define UART_TX_GPIO_Port GPIOA
+#define UART_RX_Pin GPIO_PIN_10
+#define UART_RX_GPIO_Port GPIOA
+#define CAN_RX_2_Pin GPIO_PIN_11
+#define CAN_RX_2_GPIO_Port GPIOA
+#define CAN_TX_2_Pin GPIO_PIN_12
+#define CAN_TX_2_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

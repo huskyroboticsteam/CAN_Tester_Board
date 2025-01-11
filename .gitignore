@@ -16,3 +16,4 @@ Export/
 *.svd
 *.log
 *.zip
+.DS_Store
