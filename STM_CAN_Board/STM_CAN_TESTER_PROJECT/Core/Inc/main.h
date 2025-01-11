@@ -73,10 +73,14 @@ void Error_Handler(void);
 #define UART_TX_GPIO_Port GPIOA
 #define UART_RX_Pin GPIO_PIN_10
 #define UART_RX_GPIO_Port GPIOA
-#define CAN_RX_2_Pin GPIO_PIN_11
-#define CAN_RX_2_GPIO_Port GPIOA
-#define CAN_TX_2_Pin GPIO_PIN_12
-#define CAN_TX_2_GPIO_Port GPIOA
+#define PRG_DATA_Pin GPIO_PIN_13
+#define PRG_DATA_GPIO_Port GPIOA
+#define PRG_CLK_Pin GPIO_PIN_14
+#define PRG_CLK_GPIO_Port GPIOA
+#define CAN_RX_Pin GPIO_PIN_8
+#define CAN_RX_GPIO_Port GPIOB
+#define CAN_TX_Pin GPIO_PIN_9
+#define CAN_TX_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
