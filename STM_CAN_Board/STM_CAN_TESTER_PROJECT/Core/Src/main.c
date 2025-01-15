@@ -18,7 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include <stdint.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -105,6 +105,40 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_Delay(1000);
+	  CAN1_LED_TogglePin();
+	  HAL_Delay(1000);
+	  CAN1_LED_TogglePin();
+	  // Toggle LED
+//	  if (CAN_time_LED > 0) {
+//	      CAN1_LED_Write(0);
+//	      CAN_time_LED--;
+//	  } else {
+//	      CAN1_LED_Write(1);
+//	  }
+
+	  // Checking for UART data
+	  /*uint32 c = DBG_UART_UartGetChar();
+	  if (c) {
+	      if (c == '\r') {
+	          parseLine(&can_tx, uart_rx+1, uart_rx_len-1);
+	          if (SendCANPacket(&can_tx) == 0) {
+	              ...
+	          } else {
+	              Print("Epic FAIL\r\n");
+	          }
+	      } else {
+	          uart_rx[uart_rx_len] = c;
+	          uart_rx_len++;
+	      }
+	  } */
+
+	  // Check if Can packet received
+	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
+	      sprintCANPacket(&can_rx, uart_tx);
+	      Print(uart_tx);
+	  }*/
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -288,13 +322,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ERR1_Pin|DBG1_Pin|CAN1_Pin|ERR2_Pin
-                          |DBG2_Pin|CAN2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, ERR_Pin|DBG_Pin|CAN1_LED_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : ERR1_Pin DBG1_Pin CAN1_Pin ERR2_Pin
-                           DBG2_Pin CAN2_Pin */
-  GPIO_InitStruct.Pin = ERR1_Pin|DBG1_Pin|CAN1_Pin|ERR2_Pin
-                          |DBG2_Pin|CAN2_Pin;
+  /*Configure GPIO pins : ERR_Pin DBG_Pin CAN1_LED_Pin */
+  GPIO_InitStruct.Pin = ERR_Pin|DBG_Pin|CAN1_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
