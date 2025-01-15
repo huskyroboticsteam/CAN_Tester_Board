@@ -17,3 +17,4 @@ Export/
 *.log
 *.zip
 .DS_Store
+STM_CAN_Board/.metadata/.plugins/org.eclipse.core.runtime/.settings/org.eclipse.ui.workbench.prefs
