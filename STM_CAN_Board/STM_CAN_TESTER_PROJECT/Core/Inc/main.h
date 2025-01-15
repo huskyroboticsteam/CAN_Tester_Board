@@ -57,18 +57,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ERR1_Pin GPIO_PIN_0
-#define ERR1_GPIO_Port GPIOA
-#define DBG1_Pin GPIO_PIN_1
-#define DBG1_GPIO_Port GPIOA
-#define CAN1_Pin GPIO_PIN_2
-#define CAN1_GPIO_Port GPIOA
-#define ERR2_Pin GPIO_PIN_3
-#define ERR2_GPIO_Port GPIOA
-#define DBG2_Pin GPIO_PIN_4
-#define DBG2_GPIO_Port GPIOA
-#define CAN2_Pin GPIO_PIN_5
-#define CAN2_GPIO_Port GPIOA
+#define ERR_Pin GPIO_PIN_0
+#define ERR_GPIO_Port GPIOA
+#define DBG_Pin GPIO_PIN_1
+#define DBG_GPIO_Port GPIOA
+#define CAN1_LED_Pin GPIO_PIN_2
+#define CAN1_LED_GPIO_Port GPIOA
 #define UART_TX_Pin GPIO_PIN_9
 #define UART_TX_GPIO_Port GPIOA
 #define UART_RX_Pin GPIO_PIN_10
