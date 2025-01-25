@@ -61,8 +61,8 @@ void Error_Handler(void);
 #define ERR_GPIO_Port GPIOA
 #define DBG_Pin GPIO_PIN_1
 #define DBG_GPIO_Port GPIOA
-#define CAN_LED_Pin GPIO_PIN_2
-#define CAN_LED_GPIO_Port GPIOA
+#define CAN1_LED_Pin GPIO_PIN_2
+#define CAN1_LED_GPIO_Port GPIOA
 #define UART_TX_Pin GPIO_PIN_9
 #define UART_TX_GPIO_Port GPIOA
 #define UART_RX_Pin GPIO_PIN_10

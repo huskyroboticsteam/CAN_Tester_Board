@@ -106,9 +106,9 @@ int main(void)
   while (1)
   {
 	  HAL_Delay(1000);
-	  HAL_GPIO_TogglePin(CAN1_LED_Pin, GPIO_PIN_2);
+	  CAN1_LED_TogglePin();
 	  HAL_Delay(1000);
-	  HAL_GPIO_TogglePin(CAN1_LED_Pin, GPIO_PIN_2);
+	  CAN1_LED_TogglePin();
 	  // Toggle LED
 //	  if (CAN_time_LED > 0) {
 //	      CAN1_LED_Write(0);
