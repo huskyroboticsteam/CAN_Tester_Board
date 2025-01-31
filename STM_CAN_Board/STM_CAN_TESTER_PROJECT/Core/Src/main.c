@@ -104,11 +104,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {
-	  HAL_Delay(1000);
-	  HAL_GPIO_TogglePin(CAN1_LED_Pin, GPIO_PIN_2);
-	  HAL_Delay(1000);
-	  HAL_GPIO_TogglePin(CAN1_LED_Pin, GPIO_PIN_2);
+  	  HAL_TIM_Base_Start_IT(&htim1);
 	  // Toggle LED
 //	  if (CAN_time_LED > 0) {
 //	      CAN1_LED_Write(0);
@@ -142,7 +138,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+
   /* USER CODE END 3 */
 }
 
@@ -197,7 +193,11 @@ static void MX_CAN_Init(void)
 {
 
   /* USER CODE BEGIN CAN_Init 0 */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim->Instance == TIM1) {  // Assuming TIM3 is used
+		HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
+	}
+}
   /* USER CODE END CAN_Init 0 */
 
   /* USER CODE BEGIN CAN_Init 1 */
