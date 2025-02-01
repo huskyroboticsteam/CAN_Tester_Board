@@ -36,7 +36,6 @@ typedef struct {
     uint8_t data[8];  // CAN data (up to 8 bytes)
     uint8_t dlc;      // Data length code (0-8)
 } CANPacket;
-
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -87,7 +86,7 @@ void Print(const char *msg);
 void ProcessUART(void);
 void parseLine(CANPacket* p, char line[], int length);
 uint8_t s2x(char c);
-void sprintCANPacket(CANPacket* packet, char* buffer);
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

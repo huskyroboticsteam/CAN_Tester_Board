@@ -21,28 +21,16 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#define UART_HANDLE &huart1
-#define CAN_HANDLE &hcan
-
-extern UART_HandleTypeDef huart1;
-extern CAN_HandleTypeDef hcan;
-
-uint8_t uart_rx[64];
-uint8_t uart_tx[64];
-uint32_t uart_rx_len = 0;
-
-CAN_TxHeaderTypeDef can_tx;  // CAN transmission header
-uint8_t can_data[8];
-uint32_t can_tx_mailbox;        // CAN mailbox for transmission
 
 /* USER CODE END PD */
 
@@ -110,17 +98,37 @@ int main(void)
   MX_TIM1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  // Toggle ERR LED
   HAL_TIM_Base_Start_IT(&htim1);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1) {
+  while (1)
+
+	  // Toggle LED
+//	  if (CAN_time_LED > 0) {
+//	      CAN1_LED_Write(0);
+//	      CAN_time_LED--;
+//	  } else {
+//	      CAN1_LED_Write(1);
+//	  }
 
 	  // Checking for UART data
-	  ProcessUART();
+	  /*uint32 c = DBG_UART_UartGetChar();
+	  if (c) {
+	      if (c == '\r') {
+	          parseLine(&can_tx, uart_rx+1, uart_rx_len-1);
+	          if (SendCANPacket(&can_tx) == 0) {
+	              ...
+	          } else {
+	              Print("Epic FAIL\r\n");
+	          }
+	      } else {
+	          uart_rx[uart_rx_len] = c;
+	          uart_rx_len++;
+	      }
+	  } */
 
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
@@ -129,7 +137,7 @@ int main(void)
 	  }*/
 
     /* USER CODE END WHILE */
-  }
+
     /* USER CODE BEGIN 3 */
 
   /* USER CODE END 3 */
@@ -330,88 +338,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
 	}
 }
-
-
-// Process incoming UART characters
-void ProcessUART(void) {
-    uint8_t c;
-
-    if (HAL_UART_Receive(UART_HANDLE, &c, 1, 10) == HAL_OK) {  // Read one byte with timeout
-        if (c == '\r') {  // If Enter key pressed, process command
-            parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
-
-            if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
-                sprintCANPacket(&can_tx, uart_tx);
-                Print("sent ");
-                Print(uart_tx);
-                uart_rx_len = 0;
-            } else {
-                Print("CAN Tx Unseccessful!\r\n");
-            }
-        } else {
-            uart_rx[uart_rx_len] = c;
-            uart_rx_len++;
-        }
-    }
-}
-
-// Converts a single hex character (e.g., 'A' or '5') to its decimal equivalent
-uint8_t s2x(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    return 0;  // Default case: return 0 if not a valid hex character
-}
-
-// Parses a UART command string into a CANPacket
-void parseLine(CANPacket* p, char line[], int length) {
-    if (length < 6) return;  // Minimum length check to avoid buffer overflows
-
-    // Extract ID components
-    uint16_t pr = (uint16_t) s2x(line[0]) << 10;
-    uint16_t dg = (uint16_t) s2x(line[2]) << 6;
-    uint16_t sn = (uint16_t) s2x(line[4]) << 4 | s2x(line[5]);
-
-    p->id = (pr | dg | sn);  // Combine into a single CAN ID
-
-    // Extract CAN Data
-    int i = 0, j = 8;  // Start parsing from index 8 (where data begins)
-    while (j < length && i < 8) {
-        if (line[j-1] != ' ' && line[j] != ' ') {  // Ignore spaces
-            p->data[i] = (s2x(line[j-1]) << 4) | s2x(line[j]);  // Convert hex pair to byte
-            i++;
-        }
-        j += 3;  // Move to next hex pair (assuming "XX XX XX" format)
-    }
-    p->dlc = i;  // Store the number of valid data bytes
-}
-
-void sprintCANPacket(CANPacket* packet, char* buffer) {
-    if (!packet || !buffer) return;  // Null pointer check
-
-    // Extract priority, device group, and serial number
-    uint8_t pri = (packet->id & 0x400) >> 10;
-    uint8_t dg  = (packet->id & 0x3C0) >> 6;
-    uint8_t sn  = (packet->id & 0x03F);
-
-    // Format the ID part
-    int len = sprintf(buffer, "%01X %02X %02X ", pri, dg, sn);
-
-    // Format the data part (DLC determines how many bytes to print)
-    for (int i = 0; i < packet->dlc; i++) {
-        len += sprintf(buffer + len, "%02X ", packet->data[i]);
-    }
-
-    // Append newline
-    sprintf(buffer + len, "\r\n");
-}
-
-// Send a message over UART
-void Print(const char *msg) {
-    HAL_UART_Transmit(UART_HANDLE, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-}
-
-
 
 /* USER CODE END 4 */
 

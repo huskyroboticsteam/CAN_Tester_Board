@@ -87,7 +87,7 @@ void Print(const char *msg);
 void ProcessUART(void);
 void parseLine(CANPacket* p, char line[], int length);
 uint8_t s2x(char c);
-void sprintCANPacket(CANPacket* packet, char* buffer);
+void sprintCANPacket(CANPacket* packet, char* buffer)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

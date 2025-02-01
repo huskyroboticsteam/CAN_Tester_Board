@@ -25,16 +25,19 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
 #define UART_HANDLE &huart1
-#define CAN_HANDLE &hcan
+#define CAN_HANDLE &hcan1
 
 extern UART_HandleTypeDef huart1;
-extern CAN_HandleTypeDef hcan;
+extern CAN_HandleTypeDef hcan1;
 
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];
@@ -120,7 +123,7 @@ int main(void)
   while (1) {
 
 	  // Checking for UART data
-	  ProcessUART();
+
 
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
@@ -346,7 +349,7 @@ void ProcessUART(void) {
                 Print(uart_tx);
                 uart_rx_len = 0;
             } else {
-                Print("CAN Tx Unseccessful!\r\n");
+                Print("Epic FAIL\r\n");
             }
         } else {
             uart_rx[uart_rx_len] = c;
@@ -384,26 +387,6 @@ void parseLine(CANPacket* p, char line[], int length) {
         j += 3;  // Move to next hex pair (assuming "XX XX XX" format)
     }
     p->dlc = i;  // Store the number of valid data bytes
-}
-
-void sprintCANPacket(CANPacket* packet, char* buffer) {
-    if (!packet || !buffer) return;  // Null pointer check
-
-    // Extract priority, device group, and serial number
-    uint8_t pri = (packet->id & 0x400) >> 10;
-    uint8_t dg  = (packet->id & 0x3C0) >> 6;
-    uint8_t sn  = (packet->id & 0x03F);
-
-    // Format the ID part
-    int len = sprintf(buffer, "%01X %02X %02X ", pri, dg, sn);
-
-    // Format the data part (DLC determines how many bytes to print)
-    for (int i = 0; i < packet->dlc; i++) {
-        len += sprintf(buffer + len, "%02X ", packet->data[i]);
-    }
-
-    // Append newline
-    sprintf(buffer + len, "\r\n");
 }
 
 // Send a message over UART
