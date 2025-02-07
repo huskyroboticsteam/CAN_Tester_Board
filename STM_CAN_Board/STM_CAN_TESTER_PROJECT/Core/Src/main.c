@@ -39,6 +39,7 @@ extern CAN_HandleTypeDef hcan;
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];
 uint32_t uart_rx_len = 0;
+volatile uint32_t boot_counter = 0;
 
 CAN_TxHeaderTypeDef can_tx;  // CAN transmission header
 uint8_t can_data[8];
@@ -111,8 +112,30 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   // Toggle ERR LED
-  HAL_TIM_Base_Start_IT(&htim1);
 
+  boot_counter++;
+  char msg[50];
+  sprintf(msg, "Boot count: %lu\r\n", boot_counter);
+  Print(msg);
+
+  HAL_StatusTypeDef is_enabled = HAL_TIM_Base_Start_IT(&htim1);
+  if (is_enabled != HAL_OK) {
+      Print("TIM1 Initialization Failed!\r\n");
+      Error_Handler();
+  }
+
+  if (is_enabled != HAL_OK) {
+      Print("Timer Start Failed!\r\n");  // Debug message
+
+      Error_Handler();                   // Enter error handler if failed
+  } else {
+      Print("Timer Started Successfully!\r\n");  // Confirm success
+  }
+
+  Print("UART Test - Hello, World!\r\n");
+
+  char test_msg[] = "Hello, UART!\r\n";
+  HAL_UART_Transmit(&huart1, (uint8_t *)test_msg, sizeof(test_msg) - 1, 100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,9 +150,10 @@ int main(void)
 	      sprintCANPacket(&can_rx, uart_tx);
 	      Print(uart_tx);
 	  }*/
-
-    /* USER CODE END WHILE */
   }
+    /* USER CODE END WHILE */
+
+
     /* USER CODE BEGIN 3 */
 
   /* USER CODE END 3 */
@@ -277,6 +301,7 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 115200;
+  //huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
