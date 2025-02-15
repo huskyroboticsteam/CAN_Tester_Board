@@ -55,7 +55,7 @@ uint32_t can_tx_mailbox;        // CAN mailbox for transmission
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
-TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 
@@ -67,8 +67,8 @@ UART_HandleTypeDef huart1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
-static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -108,8 +108,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN_Init();
-  MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // Toggle ERR LED
 
@@ -118,11 +118,7 @@ int main(void)
   sprintf(msg, "Boot count: %lu\r\n", boot_counter);
   Print(msg);
 
-  HAL_StatusTypeDef is_enabled = HAL_TIM_Base_Start_IT(&htim1);
-  if (is_enabled != HAL_OK) {
-      Print("TIM1 Initialization Failed!\r\n");
-      Error_Handler();
-  }
+  HAL_StatusTypeDef is_enabled = HAL_TIM_Base_Start_IT(&htim2);
 
   if (is_enabled != HAL_OK) {
       Print("Timer Start Failed!\r\n");  // Debug message
@@ -132,19 +128,15 @@ int main(void)
       Print("Timer Started Successfully!\r\n");  // Confirm success
   }
 
-  Print("UART Test - Hello, World!\r\n");
-
-  char test_msg[] = "Hello, UART!\r\n";
-  HAL_UART_Transmit(&huart1, (uint8_t *)test_msg, sizeof(test_msg) - 1, 100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-
 	  // Checking for UART data
 	  ProcessUART();
-
+	  HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
+	  HAL_Delay(500);
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
 	      sprintCANPacket(&can_rx, uart_tx);
@@ -152,7 +144,6 @@ int main(void)
 	  }*/
   }
     /* USER CODE END WHILE */
-
 
     /* USER CODE BEGIN 3 */
 
@@ -239,48 +230,48 @@ static void MX_CAN_Init(void)
 }
 
 /**
-  * @brief TIM1 Initialization Function
+  * @brief TIM2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM1_Init(void)
+static void MX_TIM2_Init(void)
 {
 
-  /* USER CODE BEGIN TIM1_Init 0 */
+  /* USER CODE BEGIN TIM2_Init 0 */
 
-  /* USER CODE END TIM1_Init 0 */
+  /* USER CODE END TIM2_Init 0 */
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM1_Init 1 */
+  /* USER CODE BEGIN TIM2_Init 1 */
 
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 7999;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 499;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 7999;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM1_Init 2 */
-
-  /* USER CODE END TIM1_Init 2 */
+  /* USER CODE BEGIN TIM2_Init 2 */
+  HAL_NVIC_SetPriority(TIM2_IRQn,0,0);
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -301,7 +292,6 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 115200;
-  //huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -351,8 +341,9 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	if (htim->Instance == TIM1) {
+	if (htim->Instance == TIM2) {
 		HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
+		Print("TIM2 Interrupt Triggered!\r\n");  // Debug message
 	}
 }
 
@@ -436,7 +427,9 @@ void Print(const char *msg) {
     HAL_UART_Transmit(UART_HANDLE, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
 }
 
-
+void TIM2_BRK_UP_TRG_COM_IRQHandler(void) {
+    HAL_TIM_IRQHandler(&htim2);
+}
 
 /* USER CODE END 4 */
 
