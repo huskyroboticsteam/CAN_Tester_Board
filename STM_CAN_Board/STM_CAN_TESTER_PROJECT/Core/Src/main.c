@@ -135,8 +135,7 @@ int main(void)
   while (1) {
 	  // Checking for UART data
 	  ProcessUART();
-	  HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
-	  HAL_Delay(500);
+
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
 	      sprintCANPacket(&can_rx, uart_tx);
@@ -250,7 +249,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 7999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 499;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -342,7 +341,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM2) {
-		HAL_GPIO_TogglePin(GPIOA, ERR_Pin);
+		HAL_GPIO_TogglePin(ERR_GPIO_Port, ERR_Pin);
 		Print("TIM2 Interrupt Triggered!\r\n");  // Debug message
 	}
 }
