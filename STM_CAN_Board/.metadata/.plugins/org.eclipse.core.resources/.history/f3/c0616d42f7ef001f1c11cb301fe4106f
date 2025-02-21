@@ -133,8 +133,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-	  // Process for UART input and send CAN packet if valid.
-	  processUARTtoCAN();
+	  // Checking for UART data
+	  ProcessUART();
 
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
@@ -346,23 +346,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	}
 }
 
-void TIM2_BRK_UP_TRG_COM_IRQHandler(void) {
-    HAL_TIM_IRQHandler(&htim2);
-}
 
-
-/* -------------------- CAN STUFF BELOW -------------------- */
-
-
-/**
- * @brief Processes incoming UART characters and sends a corresponding CAN message.
- *
- * This function reads a character from UART, stores it in a buffer, and processes the
- * command when a carriage return ('\r') is received. If a valid command is detected,
- * it constructs a CAN message and attempts to send it via the CAN bus.
- *
- */
-void processUARTtoCAN(void) {
+// Process incoming UART characters
+void ProcessUART(void) {
     uint8_t c;
 
     if (HAL_UART_Receive(UART_HANDLE, &c, 1, 10) == HAL_OK) {  // Read one byte with timeout
@@ -384,12 +370,7 @@ void processUARTtoCAN(void) {
     }
 }
 
-/**
- * @brief Converts a single hexadecimal character (0-9, A-F, a-f) to its decimal equivalent.
- *
- * @param c The hexadecimal character to convert.
- * @return uint8_t The decimal equivalent of the hex character (0-15).
- */
+// Converts a single hex character (e.g., 'A' or '5') to its decimal equivalent
 uint8_t s2x(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -397,16 +378,7 @@ uint8_t s2x(char c) {
     return 0;  // Default case: return 0 if not a valid hex character
 }
 
-/**
- * @brief Parses a UART command string into a CANPacket structure.
- *
- * This function extracts the CAN ID from the input string and converts hex pairs
- * into CAN data bytes.
- *
- * @param p Pointer to the CANPacket structure to store the parsed data.
- * @param line Character array containing the command string.
- * @param length Length of the input string.
- */
+// Parses a UART command string into a CANPacket
 void parseLine(CANPacket* p, char line[], int length) {
     if (length < 6) return;  // Minimum length check to avoid buffer overflows
 
@@ -429,15 +401,6 @@ void parseLine(CANPacket* p, char line[], int length) {
     p->dlc = i;  // Store the number of valid data bytes
 }
 
-/**
- * @brief Formats a CANPacket structure into a human-readable string.
- *
- * The function extracts CAN ID fields and converts data bytes into a
- * formatted string representation for easy UART transmission.
- *
- * @param packet Pointer to the CANPacket structure containing the CAN message.
- * @param buffer Character array where the formatted string will be stored.
- */
 void sprintCANPacket(CANPacket* packet, char* buffer) {
     if (!packet || !buffer) return;  // Null pointer check
 
@@ -458,15 +421,13 @@ void sprintCANPacket(CANPacket* packet, char* buffer) {
     sprintf(buffer + len, "\r\n");
 }
 
-/**
- * @brief Sends a message over UART.
- *
- * This function transmits a string over UART using HAL_UART_Transmit.
- *
- * @param msg Pointer to the null-terminated string to be transmitted.
- */
+// Send a message over UART
 void Print(const char *msg) {
     HAL_UART_Transmit(UART_HANDLE, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+}
+
+void TIM2_BRK_UP_TRG_COM_IRQHandler(void) {
+    HAL_TIM_IRQHandler(&htim2);
 }
 
 /* USER CODE END 4 */

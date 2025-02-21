@@ -84,7 +84,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 
 void Print(const char *msg);
-void processUARTtoCAN(void);
+void ProcessUART(void);
 void parseLine(CANPacket* p, char line[], int length);
 uint8_t s2x(char c);
 void sprintCANPacket(CANPacket* packet, char* buffer);
