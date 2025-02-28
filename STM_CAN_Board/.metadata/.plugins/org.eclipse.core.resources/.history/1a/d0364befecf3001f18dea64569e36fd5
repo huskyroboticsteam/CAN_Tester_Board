@@ -387,7 +387,7 @@ void processUARTtoCAN(void) {
 
             // 1. Parse UART to CAN Packet
             parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
-            Print("\r\n------------------------------------ \r\nAttempting to CAN send: ");
+            Print("------------------------------------ \r\nAttempting to CAN send: ");
             Print(uart_rx);
             Print("\r\n");
 

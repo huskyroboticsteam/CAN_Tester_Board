@@ -366,58 +366,29 @@ void processUARTtoCAN(void) {
     uint8_t c;
 
     if (HAL_UART_Receive(UART_HANDLE, &c, 1, 10) == HAL_OK) {  // Read one byte with timeout
-        if (c == '\r') {  // If Enter key pressed, process command
+		if (c == '\r') {  // If Enter key pressed, process command
+			parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
 
-            // Check if all mailboxes are full
-            if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) <= 0) {
-                Print("Mailboxes Full! Aborting the oldest message...\r\n");
+			Print("Attempting to CAN send: ");
+			Print(uart_rx);
+			Print("\r\n");  // Use "\r\n" for proper new line
 
-                // Identify the oldest pending mailbox and abort only one
-                if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX0)) {
-                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX0);
-                    Print("Aborted TX Mailbox 0\r\n");
-                } else if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX1)) {
-                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX1);
-                    Print("Aborted TX Mailbox 1\r\n");
-                } else if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX2)) {
-                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX2);
-                    Print("Aborted TX Mailbox 2\r\n");
-                }
-            }
+			if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) > 0 &&
+				HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
+				sprintCANPacket(&can_tx, uart_tx);
+				Print("sent ");
+				Print(uart_tx);
+			} else {
+				Print("CAN Tx Unsuccessful!\r\n");
+			}
 
-            // 1. Parse UART to CAN Packet
-            parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
-            Print("\r\n------------------------------------ \r\nAttempting to CAN send: ");
-            Print(uart_rx);
-            Print("\r\n");
-
-            // 2. Send if there is a free mailbox
-            if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) > 0) {
-                if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
-                    sprintCANPacket(&can_tx, uart_tx);
-                    Print("sent ");
-                    Print(uart_tx);
-                } else {
-                    Print("CAN Tx Unsuccessful!\r\n");
-                }
-            } else {
-                if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, can_tx_mailbox)) {
-                    Print("CAN Mailbox Still Pending, Waiting...\r\n");
-                } else {
-                    Print("CAN Mailbox Free, Sending Message...\r\n");
-                }
-            }
-
-            Print("------------------------------------ \r\n \r\n");
-
-            // Reset UART buffer
-            uart_rx_len = 0;
-            memset(uart_rx, 0, sizeof(uart_rx));
-        } else {
-            uart_rx[uart_rx_len] = c;
-            uart_rx_len++;
-        }
-    }
+			uart_rx_len = 0;  // Reset buffer index after sending
+			memset(uart_rx, 0, sizeof(uart_rx));  // Clear buffer
+		} else {
+			uart_rx[uart_rx_len] = c;
+			uart_rx_len++;
+		}
+	}
 }
 
 /**

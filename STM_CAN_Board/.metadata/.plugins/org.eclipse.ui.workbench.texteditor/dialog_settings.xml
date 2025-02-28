@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="GPIO"/>
+		<item key="selection" value="MAIL"/>
 		<item key="wrap" value="true"/>
-		<item key="casesensitive" value="false"/>
+		<item key="casesensitive" value="true"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="MAIL"/>
+			<item value="Auto"/>
+			<item value="AUTO"/>
+			<item value="auto"/>
+			<item value="hal_uart"/>
+			<item value="ProcessUART"/>
 			<item value="gpio"/>
 			<item value="callback"/>
 			<item value="MX_TIM2_Init("/>
@@ -17,21 +23,16 @@
 			<item value="Error_Handler"/>
 			<item value="ERR_Handler"/>
 			<item value="HAL_TIM_PeriodElapsedCallback()"/>
-			<item value="IRQ"/>
-			<item value="BRK"/>
-			<item value="TIM1"/>
-			<item value="RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;"/>
-			<item value="RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;"/>
-			<item value="HAL_TIM_Base_Start_IT(&amp;htim1);"/>
 		</list>
 		<list key="replacehistory">
+			<item value="processUARTtoCAN"/>
 			<item value="TIM2_Init"/>
 			<item value="TIM2"/>
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
-		<item key="DIALOG_X_ORIGIN" value="538"/>
-		<item key="DIALOG_Y_ORIGIN" value="360"/>
+		<item key="DIALOG_X_ORIGIN" value="1050"/>
+		<item key="DIALOG_Y_ORIGIN" value="253"/>
 		<item key="DIALOG_WIDTH" value="336"/>
 		<item key="DIALOG_HEIGHT" value="400"/>
 		<item key="DIALOG_FONT_NAME" value="1|.AppleSystemUIFont|11.0|0|COCOA|1|.AppleSystemUIFont"/>
