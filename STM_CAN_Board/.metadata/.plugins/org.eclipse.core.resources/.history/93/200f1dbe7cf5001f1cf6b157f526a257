@@ -394,26 +394,18 @@ void processUARTtoCAN(void) {
             // 2. Send if there is a free mailbox
             if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) > 0) {
                 if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
-
-                	// Message successfully queued to the mailbox
-                	sprintCANPacket(&can_tx, uart_tx);
-                    Print("Queued CAN message: ");
+                    sprintCANPacket(&can_tx, uart_tx);
+                    Print("sent ");
                     Print(uart_tx);
-
-                    // Check if transmitted
-					while (HAL_CAN_IsTxMessagePending(CAN_HANDLE, can_tx_mailbox)) {
-						HAL_Delay(10);  // Small delay to allow message to transmit
-					}
-
-					// Message was successfully sent out
-					Print("CAN message sent successfully.\r\n");
-
-
                 } else {
-                    Print("CAN Tx queued but failed to send! Check CAN receiver connection.\r\n");
+                    Print("CAN Tx Unsuccessful!\r\n");
                 }
             } else {
-            	Print("No free mailbox! Message was not sent. Check CAN receiver connection. \r\n");
+                if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, can_tx_mailbox)) {
+                    Print("CAN Mailbox Still Pending, Waiting...\r\n");
+                } else {
+                    Print("CAN Mailbox Free, Sending Message...\r\n");
+                }
             }
 
             Print("------------------------------------ \r\n \r\n");
