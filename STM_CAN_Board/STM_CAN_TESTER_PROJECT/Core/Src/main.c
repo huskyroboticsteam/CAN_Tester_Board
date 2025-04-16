@@ -81,7 +81,21 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_GPIO_EXIT_CallBack(uint16_t GPIO_Pin)
+{
+	if (GPIO_Pin == GPIO_PIN_13)
+	{
+		TxData[0] = 100;
+		TxData[1] = 10;
 
+		HAL_CAN_AddTxMessage(&hcan1, &canTxHeader, canTxData, &canTxMailbox)
+	}
+}
+
+void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+
+}
 /* USER CODE END 0 */
 
 /**
