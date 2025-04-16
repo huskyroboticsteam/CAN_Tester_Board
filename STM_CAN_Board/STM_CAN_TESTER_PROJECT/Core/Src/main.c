@@ -36,14 +36,20 @@
 extern UART_HandleTypeDef huart1;
 extern CAN_HandleTypeDef hcan;
 
+// UART
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];
 uint32_t uart_rx_len = 0;
 volatile uint32_t boot_counter = 0;
 
-CAN_TxHeaderTypeDef can_tx;  // CAN transmission header
-uint8_t can_data[8];
-uint32_t can_tx_mailbox;        // CAN mailbox for transmission
+// CAN
+CAN_TxHeaderTypeDef canTxHeader;  // CAN transmission header
+CAN_RxHeaderTypeDef canRxHeader;
+uint8_t canTxData[8];			// CAN Data
+uint8_t canRxData[8];
+uint32_t canTxMailbox;        // CAN mailbox for transmission
+
+// At 6:25 https://youtu.be/KHNRftBa1Vc?si=YXZLho1I0s0ldr1W <<<<<<<<<<<<<<<<<<<<-----------
 
 /* USER CODE END PD */
 
@@ -111,18 +117,24 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  // Toggle ERR LED
 
+  // Activate the notification
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+  canTxHeader.DLC = 2; // data length
+  canTxHeader.IDE = CAN_ID_STD;
+  canTxHeader.RTR = CAN_RTR_DATA;
+  canTxHeader.DLC = 0x446; // ID										// TODO: ADJUST CAN STUFF HERE
+
+
+  // Toggle ERR LED
   boot_counter++;
   char msg[50];
   sprintf(msg, "Boot count: %lu\r\n", boot_counter);
   Print(msg);
-
   HAL_StatusTypeDef is_enabled = HAL_TIM_Base_Start_IT(&htim2);
 
   if (is_enabled != HAL_OK) {
       Print("Timer Start Failed!\r\n");  // Debug message
-
       Error_Handler();                   // Enter error handler if failed
   } else {
       Print("Timer Started Successfully!\r\n");  // Confirm success
@@ -324,6 +336,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -389,22 +402,22 @@ void processUARTtoCAN(void) {
             }
 
             // 1. Parse UART to CAN Packet
-            parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
+            parseLine(&canTxHeader, uart_rx + 1, uart_rx_len - 1);
             Print("\r\n------------------------------------ \r\nAttempting to CAN send: ");
             Print(uart_rx);
             Print("\r\n");
 
             // 2. Send if there is a free mailbox
             if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) > 0) {
-                if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
+                if (HAL_CAN_AddTxMessage(CAN_HANDLE, &canTxHeader, canTxData, &canTxMailbox) == HAL_OK) {
 
                 	// Message successfully queued to the mailbox
-                	sprintCANPacket(&can_tx, uart_tx);
+                	sprintCANPacket(&canTxHeader, uart_tx);
                     Print("Queued CAN message: ");
                     Print(uart_tx);
 
                     // Check if transmitted
-					while (HAL_CAN_IsTxMessagePending(CAN_HANDLE, can_tx_mailbox)) {
+					while (HAL_CAN_IsTxMessagePending(CAN_HANDLE, canTxMailbox)) {
 						HAL_Delay(10);  // Small delay to allow message to transmit
 					}
 

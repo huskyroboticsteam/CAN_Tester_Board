@@ -165,7 +165,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL5;
+  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -175,11 +178,11 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -207,11 +210,11 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 16;
+  hcan.Init.Prescaler = 31;
   hcan.Init.Mode = CAN_MODE_NORMAL;
-  hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan.Init.SyncJumpWidth = CAN_SJW_3TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_5TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_4TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
   hcan.Init.AutoWakeUp = DISABLE;
@@ -247,7 +250,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 7999;
+  htim2.Init.Prescaler = 39999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 499;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -321,6 +324,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
@@ -367,16 +371,60 @@ void processUARTtoCAN(void) {
 
     if (HAL_UART_Receive(UART_HANDLE, &c, 1, 10) == HAL_OK) {  // Read one byte with timeout
         if (c == '\r') {  // If Enter key pressed, process command
-            parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
 
-            if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
-                sprintCANPacket(&can_tx, uart_tx);
-                Print("sent ");
-                Print(uart_tx);
-                uart_rx_len = 0;
-            } else {
-                Print("CAN Tx Unseccessful!\r\n");
+            // Check if all mailboxes are full
+            if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) <= 0) {
+                Print("Mailboxes Full! Aborting the oldest message...\r\n");
+
+                // Identify the oldest pending mailbox and abort only one
+                if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX0)) {
+                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX0);
+                    Print("Aborted TX Mailbox 0\r\n");
+                } else if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX1)) {
+                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX1);
+                    Print("Aborted TX Mailbox 1\r\n");
+                } else if (HAL_CAN_IsTxMessagePending(CAN_HANDLE, CAN_TX_MAILBOX2)) {
+                    HAL_CAN_AbortTxRequest(CAN_HANDLE, CAN_TX_MAILBOX2);
+                    Print("Aborted TX Mailbox 2\r\n");
+                }
             }
+
+            // 1. Parse UART to CAN Packet
+            parseLine(&can_tx, uart_rx + 1, uart_rx_len - 1);
+            Print("\r\n------------------------------------ \r\nAttempting to CAN send: ");
+            Print(uart_rx);
+            Print("\r\n");
+
+            // 2. Send if there is a free mailbox
+            if (HAL_CAN_GetTxMailboxesFreeLevel(CAN_HANDLE) > 0) {
+                if (HAL_CAN_AddTxMessage(CAN_HANDLE, &can_tx, can_data, &can_tx_mailbox) == HAL_OK) {
+
+                	// Message successfully queued to the mailbox
+                	sprintCANPacket(&can_tx, uart_tx);
+                    Print("Queued CAN message: ");
+                    Print(uart_tx);
+
+                    // Check if transmitted
+					while (HAL_CAN_IsTxMessagePending(CAN_HANDLE, can_tx_mailbox)) {
+						HAL_Delay(10);  // Small delay to allow message to transmit
+					}
+
+					// Message was successfully sent out
+					Print("CAN message sent successfully.\r\n");
+
+
+                } else {
+                    Print("CAN Tx queued but failed to send! Check CAN receiver connection.\r\n");
+                }
+            } else {
+            	Print("No free mailbox! Message was not sent. Check CAN receiver connection. \r\n");
+            }
+
+            Print("------------------------------------ \r\n \r\n");
+
+            // Reset UART buffer
+            uart_rx_len = 0;
+            memset(uart_rx, 0, sizeof(uart_rx));
         } else {
             uart_rx[uart_rx_len] = c;
             uart_rx_len++;

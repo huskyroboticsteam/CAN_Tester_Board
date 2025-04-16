@@ -1,30 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="MAIL"/>
+		<item key="selection" value="Callback"/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="true"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="Callback"/>
+			<item value="callback"/>
+			<item value="CAN_IT_RX_FIFO0_MSG_PENDING"/>
+			<item value="CAN_IT"/>
+			<item value="defgroup"/>
+			<item value="CAN_Interrupts"/>
+			<item value="can_tx_mailbox"/>
+			<item value="CANTxData"/>
+			<item value="CANTxHeader"/>
+			<item value="can_tx"/>
+			<item value="can_data"/>
+			<item value="hcan"/>
 			<item value="MAIL"/>
 			<item value="Auto"/>
 			<item value="AUTO"/>
-			<item value="auto"/>
-			<item value="hal_uart"/>
-			<item value="ProcessUART"/>
-			<item value="gpio"/>
-			<item value="callback"/>
-			<item value="MX_TIM2_Init("/>
-			<item value="while"/>
-			<item value="SystemClock_Config("/>
-			<item value="HAL_TIM_PeriodElapsedCallback"/>
-			<item value="Error_Handler"/>
-			<item value="ERR_Handler"/>
-			<item value="HAL_TIM_PeriodElapsedCallback()"/>
 		</list>
 		<list key="replacehistory">
+			<item value="canTxMailbox"/>
+			<item value="canTxData"/>
+			<item value="canTxHeader"/>
+			<item value="CANTxHeader"/>
+			<item value="CANTxData"/>
 			<item value="processUARTtoCAN"/>
 			<item value="TIM2_Init"/>
 			<item value="TIM2"/>
