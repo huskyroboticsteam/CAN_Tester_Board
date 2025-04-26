@@ -88,13 +88,16 @@ void HAL_GPIO_EXIT_CallBack(uint16_t GPIO_Pin)
 		TxData[0] = 100;
 		TxData[1] = 10;
 
-		HAL_CAN_AddTxMessage(&hcan1, &canTxHeader, canTxData, &canTxMailbox)
+		HAL_CAN_AddTxMessage(&hcan1, &canTxHeader, canTxData, &canTxMailbox);
 	}
 }
 
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-
+		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
+		if (RxHeader.DLC == 2) {
+			datacheck = 1;
+		}
 }
 /* USER CODE END 0 */
 
@@ -162,6 +165,13 @@ int main(void)
 	  // Process for UART input and send CAN packet if valid.
 	  processUARTtoCAN();
 
+	  for (int i = 0; i <RxData[1]; i++)
+	  {
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		  HAL_Delay(RxData[0])
+	  }
+
+	  datacheck = 0;
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
 	      sprintCANPacket(&can_rx, uart_tx);

@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="Callback"/>
+		<item key="selection" value="canTxHeader.DLC = 0x446;"/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="true"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="canTxHeader.DLC = 0x446;"/>
+			<item value="446"/>
+			<item value="code"/>
+			<item value=" 0x446;"/>
+			<item value="MailBox"/>
+			<item value="Mail"/>
+			<item value="TxData[0]"/>
+			<item value="HAL_CAN_GetRx"/>
 			<item value="Callback"/>
 			<item value="callback"/>
 			<item value="CAN_IT_RX_FIFO0_MSG_PENDING"/>
@@ -15,14 +23,6 @@
 			<item value="defgroup"/>
 			<item value="CAN_Interrupts"/>
 			<item value="can_tx_mailbox"/>
-			<item value="CANTxData"/>
-			<item value="CANTxHeader"/>
-			<item value="can_tx"/>
-			<item value="can_data"/>
-			<item value="hcan"/>
-			<item value="MAIL"/>
-			<item value="Auto"/>
-			<item value="AUTO"/>
 		</list>
 		<list key="replacehistory">
 			<item value="canTxMailbox"/>
@@ -36,10 +36,10 @@
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
-		<item key="DIALOG_X_ORIGIN" value="1050"/>
-		<item key="DIALOG_Y_ORIGIN" value="253"/>
-		<item key="DIALOG_WIDTH" value="336"/>
-		<item key="DIALOG_HEIGHT" value="400"/>
-		<item key="DIALOG_FONT_NAME" value="1|.AppleSystemUIFont|11.0|0|COCOA|1|.AppleSystemUIFont"/>
+		<item key="DIALOG_X_ORIGIN" value="756"/>
+		<item key="DIALOG_Y_ORIGIN" value="206"/>
+		<item key="DIALOG_WIDTH" value="412"/>
+		<item key="DIALOG_HEIGHT" value="436"/>
+		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-30|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
 	</section>
 </section>
