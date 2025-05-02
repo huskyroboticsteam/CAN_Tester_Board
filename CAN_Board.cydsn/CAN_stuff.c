@@ -59,6 +59,7 @@ int SendCANPacket(CANPacket *packetToSend)
 
 void InitCAN() {
     CAN_Start(); // must name CAN Top Design block as "CAN"
+    CAN_1_Start();
     
     // sets up mailbox to recieve EVERYTHING
     rxMailbox.rxmailbox = 0;

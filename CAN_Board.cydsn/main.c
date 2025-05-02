@@ -40,7 +40,7 @@ uint8 s2x(char8 c) {
     }
 }
 
-void parseLine(CANPacket* p, char8 line[], int length) {
+/*void parseLine(CANPacket* p, char8 line[], int length) {
     uint16 pr = (uint16) s2x(line[0]) << 10;
     uint16 dg = (uint16) s2x(line[2]) << 6;
     uint16 sn = (uint16) s2x(line[4]) << 4 | s2x(line[5]);
@@ -52,6 +52,30 @@ void parseLine(CANPacket* p, char8 line[], int length) {
         p->data[i] = (s2x(line[j-1])<<4) | s2x(line[j]);
         j += 3;
         i++;
+    }
+    p->dlc = i;
+}
+*/
+
+
+// pr dg sn
+
+void parseLine(CANPacket* p, char line[], int length) {
+    // first three hex characters are: [node_id high nibble][node_id low nibble][cmd_id nibble]
+    uint16_t node_id = ((uint16_t)s2x(line[0]) << 4)
+                     | (uint16_t)s2x(line[1]);
+    uint16_t cmd_id  = (uint16_t)s2x(line[2]);
+
+    // CANSimple packs node_id into bits 10..4, cmd_id into bits 3..0
+    p->id = (node_id << 4) | cmd_id;
+
+    // now parse up to 8 data bytes; 
+    // we’ll assume the first data‐byte hex digits start at line[4] and are in “XY:” groups
+    int  i = 0;
+    int  j = 4;
+    while (j + 1 < length && i < 8) {
+        p->data[i++] = (s2x(line[j]) << 4) | s2x(line[j+1]);
+        j += 3; // skip over the delimiter (e.g. “:” or space) after each byte
     }
     p->dlc = i;
 }
@@ -92,7 +116,7 @@ uint32_t decodeFromBytes(int msb_index, int lsb_index, uint8_t data[]) {
 int main(void) {
     CyGlobalIntEnable;
     
-    InitCAN();
+    InitCAN(0x04, 0x11);
     
     DBG_UART_Start();
     Print("startup\n\r");
@@ -132,7 +156,10 @@ int main(void) {
         }
         
         if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
+            CAN1_LED_Write(0);
+            CyDelay(100);
             sprintCANPacket(&can_rx, uart_tx);
+            CAN1_LED_Write(1);
             Print(uart_tx);
         }
     }
