@@ -36,8 +36,6 @@
 extern UART_HandleTypeDef huart1;
 extern CAN_HandleTypeDef hcan;
 
-uint8_t datacheck = 0;
-
 // UART
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];

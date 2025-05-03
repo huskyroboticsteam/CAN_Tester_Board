@@ -36,8 +36,6 @@
 extern UART_HandleTypeDef huart1;
 extern CAN_HandleTypeDef hcan;
 
-uint8_t datacheck = 0;
-
 // UART
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];
@@ -87,17 +85,17 @@ void HAL_GPIO_EXIT_CallBack(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == GPIO_PIN_13)
 	{
-		canTxData[0] = 100;
-		canTxData[1] = 10;
+		TxData[0] = 100;
+		TxData[1] = 10;
 
-		HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &canTxMailbox);
+		HAL_CAN_AddTxMessage(&hcan1, &canTxHeader, canTxData, &canTxMailbox);
 	}
 }
 
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData);
-		if (canRxHeader.DLC == 2) {
+		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
+		if (RxHeader.DLC == 2) {
 			datacheck = 1;
 		}
 }
@@ -138,7 +136,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // Activate the notification
-  HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   canTxHeader.DLC = 2; // data length
   canTxHeader.IDE = CAN_ID_STD;
   canTxHeader.RTR = CAN_RTR_DATA;
@@ -167,10 +165,10 @@ int main(void)
 	  // Process for UART input and send CAN packet if valid.
 	  processUARTtoCAN();
 
-	  for (int i = 0; i < canRxData[1]; i++)
+	  for (int i = 0; i <RxData[1]; i++)
 	  {
 		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-		  HAL_Delay(canRxData[0]);
+		  HAL_Delay(RxData[0])
 	  }
 
 	  datacheck = 0;

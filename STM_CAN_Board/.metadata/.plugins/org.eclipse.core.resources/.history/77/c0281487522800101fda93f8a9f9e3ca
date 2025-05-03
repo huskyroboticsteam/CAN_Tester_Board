@@ -36,8 +36,6 @@
 extern UART_HandleTypeDef huart1;
 extern CAN_HandleTypeDef hcan;
 
-uint8_t datacheck = 0;
-
 // UART
 uint8_t uart_rx[64];
 uint8_t uart_tx[64];
@@ -97,7 +95,7 @@ void HAL_GPIO_EXIT_CallBack(uint16_t GPIO_Pin)
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData);
-		if (canRxHeader.DLC == 2) {
+		if (RxHeader.DLC == 2) {
 			datacheck = 1;
 		}
 }
