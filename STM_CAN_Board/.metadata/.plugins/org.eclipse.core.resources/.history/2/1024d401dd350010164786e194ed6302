@@ -172,7 +172,7 @@ int main(void)
   canTxHeader.DLC = 2; // data length
   canTxHeader.IDE = CAN_ID_STD;
   canTxHeader.RTR = CAN_RTR_DATA;
-  canTxHeader.StdId = 0x446; // ID			Need to change device stdid based on the stuff we are debugging				// TODO: ADJUST CAN STUFF HERE
+  canTxHeader.StdID = 0x446; // ID			Need to change device stdid based on the stuff we are debugging				// TODO: ADJUST CAN STUFF HERE
 
 
   // Toggle ERR LED
@@ -189,29 +189,21 @@ int main(void)
       Print("Timer Started Successfully!\r\n");  // Confirm success
   }
 
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-
 	  // Process for UART input and send CAN packet if valid.
 	  processUARTtoCAN();
 
-	  // Only respond if a new CAN message has been received
-    if (datacheck == 1) {
-        // Use data in received message to blink an LED
-        // Blink count = canRxData[1], delay = canRxData[0] ms
-        for (int i = 0; i < canRxData[1]; i++) {
-            HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);  // Toggle LED
-            HAL_Delay(canRxData[0]);                // Wait
-        }
+	  for (int i = 0; i < canRxData[1]; i++)
+	  {
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		  HAL_Delay(canRxData[0]);
+	  }
 
-        // Reset the flag so this only happens once per message
-        datacheck = 0;
-    }
-    
+	  datacheck = 0;
 	  // Check if Can packet received
 	  /*if (PollAndReceiveCANPacket(&can_rx) == ERROR_NONE) {
 	      sprintCANPacket(&can_rx, uart_tx);
