@@ -94,13 +94,43 @@ void HAL_GPIO_EXIT_CallBack(uint16_t GPIO_Pin)
 	}
 }
 
-void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+//void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+//{
+//		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData);
+//		if (canRxHeader.DLC == 2) {
+//			datacheck = 1;
+//		}
+//}
+
+// Interrupt Service Routine for FIFO 0
+// STM32 HAL calls this automatically when a message arrives.
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-		Hal_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData);
-		if (canRxHeader.DLC == 2) {
-			datacheck = 1;
-		}
+    // Reads the received CAN message from FIFO0 into a local header and data buffer.
+    HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData);
+
+    // Only process messages with 1–8 data bytes
+    if (canRxHeader.DLC > 0 && canRxHeader.DLC <= 8) {
+        datacheck = 1;  // Set flag to trigger action in main()
+
+        // Create a packet structure to hold ID and data
+        CANPacket rx_packet = {
+            .id = canRxHeader.StdId,
+            .dlc = canRxHeader.DLC
+        };
+
+        // Copy the received data bytes into the packet
+        memcpy(rx_packet.data, canRxData, canRxHeader.DLC);
+
+        // Format the packet into a readable string
+        sprintCANPacket(&rx_packet, uart_tx);
+
+        // Send the formatted CAN message string over UART
+        Print("Received CAN packet: ");
+        Print(uart_tx);
+    }
 }
+
 /* USER CODE END 0 */
 
 /**
